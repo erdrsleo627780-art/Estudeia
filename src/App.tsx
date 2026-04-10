@@ -26,7 +26,9 @@ import { generateQuestions } from './services/geminiService';
 import { auth, db } from './firebase';
 import { 
   onAuthStateChanged,
-  signInAnonymously
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 import { 
   doc, 
@@ -179,6 +181,8 @@ function EduApp() {
   
   // Auth Listener
   useEffect(() => {
+    const GUEST_PASSWORD = 'edu_adaptive_guest_123';
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -208,13 +212,41 @@ function EduApp() {
         }
       } else {
         setUser(null);
-        // Automatically sign in anonymously to avoid login screen
-        signInAnonymously(auth).catch(err => {
-          console.error("Anonymous Auth Error:", err);
-          if (err.code === 'auth/admin-restricted-operation') {
-            setAuthError('O login anônimo não está ativado no Firebase Console.');
+        
+        // Try real anonymous auth first
+        try {
+          await signInAnonymously(auth);
+        } catch (err: any) {
+          console.warn("Standard Anonymous Auth failed, trying simulation:", err.code);
+          
+          // If standard anonymous auth is disabled, simulate it using Email/Password
+          if (err.code === 'auth/admin-restricted-operation' || err.code === 'auth/operation-not-allowed') {
+            let guestId = localStorage.getItem('edu_guest_id');
+            if (!guestId) {
+              guestId = 'g_' + Math.random().toString(36).substring(2, 15);
+              localStorage.setItem('edu_guest_id', guestId);
+            }
+            
+            const email = `${guestId}@edu.com`;
+            try {
+              await signInWithEmailAndPassword(auth, email, GUEST_PASSWORD);
+            } catch (signInErr: any) {
+              if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
+                try {
+                  await createUserWithEmailAndPassword(auth, email, GUEST_PASSWORD);
+                } catch (createErr: any) {
+                  console.error("Simulation failed:", createErr);
+                  setAuthError('Erro ao criar conta automática. Verifique se o provedor de E-mail/Senha está ativo no Firebase.');
+                }
+              } else {
+                console.error("Simulation sign-in failed:", signInErr);
+                setAuthError('Erro ao acessar conta automática.');
+              }
+            }
+          } else {
+            setAuthError('Erro de autenticação: ' + err.message);
           }
-        });
+        }
       }
       setIsAuthLoading(false);
     });
@@ -881,7 +913,7 @@ function EduApp() {
             <ol className="list-decimal ml-4 space-y-1">
               <li>Acesse o Firebase Console.</li>
               <li>Vá em <strong>Authentication</strong> &gt; <strong>Sign-in method</strong>.</li>
-              <li>Ative o provedor <strong>Anônimo</strong>.</li>
+              <li>Ative o provedor <strong>E-mail/Senha</strong> (Email/Password).</li>
             </ol>
           </div>
           <button 
