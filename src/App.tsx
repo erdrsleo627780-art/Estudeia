@@ -298,7 +298,7 @@ function EduApp() {
         handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
       }
     }
-  }, [user]);
+  }, [user, isLocalMode]);
 
   // Sync on state changes
   useEffect(() => {
