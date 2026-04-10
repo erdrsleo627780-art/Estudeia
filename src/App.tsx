@@ -175,11 +175,14 @@ function EduApp() {
     dailyUsage: {},
   });
 
+  const [authError, setAuthError] = useState<string | null>(null);
+  
   // Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
+        setAuthError(null);
         // Load user data from Firestore
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -206,7 +209,12 @@ function EduApp() {
       } else {
         setUser(null);
         // Automatically sign in anonymously to avoid login screen
-        signInAnonymously(auth).catch(err => console.error("Anonymous Auth Error:", err));
+        signInAnonymously(auth).catch(err => {
+          console.error("Anonymous Auth Error:", err);
+          if (err.code === 'auth/admin-restricted-operation') {
+            setAuthError('O login anônimo não está ativado no Firebase Console.');
+          }
+        });
       }
       setIsAuthLoading(false);
     });
@@ -861,7 +869,29 @@ function EduApp() {
 
   return (
     <div className="max-w-md mx-auto bg-bg min-h-screen shadow-2xl relative overflow-hidden">
-      {isAuthLoading ? (
+      {authError ? (
+        <div className="flex flex-col items-center justify-center min-h-screen p-10 text-center">
+          <div className="text-6xl mb-6">🔒</div>
+          <h1 className="text-xl font-black mb-4 text-danger">Acesso Restrito</h1>
+          <p className="text-muted text-sm mb-8">
+            {authError}
+          </p>
+          <div className="bg-card border border-border rounded-xl p-4 text-left w-full text-xs leading-relaxed">
+            <p className="font-bold mb-2">Como resolver:</p>
+            <ol className="list-decimal ml-4 space-y-1">
+              <li>Acesse o Firebase Console.</li>
+              <li>Vá em <strong>Authentication</strong> &gt; <strong>Sign-in method</strong>.</li>
+              <li>Ative o provedor <strong>Anônimo</strong>.</li>
+            </ol>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="btn-primary w-full mt-8"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      ) : isAuthLoading ? (
         <div className="flex items-center justify-center min-h-screen">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
