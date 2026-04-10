@@ -1,0 +1,69 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId} (Firebase Auth UID)
+// Fields:
+//   - uid: string (required) - User ID
+//   - username: string (required) - Display name/handle
+//   - xp: number (required) - Experience points
+//   - level: number (required) - User level
+//   - streak: number - Daily streak
+//   - correct: number - Total correct answers
+//   - difficulty: number - Current adaptive difficulty
+//   - profileAvatar: string (required) - Avatar emoji
+//   - currentYear: string - School year
+//   - lastActive: string (ISO 8601) - Last activity timestamp
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'username', 'xp', 'level', 'profileAvatar']) &&
+             data.uid is string &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 20 &&
+             data.xp is number && data.xp >= 0 &&
+             data.level is number && data.level >= 1 &&
+             data.profileAvatar is string &&
+             (!('streak' in data) || data.streak is number) &&
+             (!('correct' in data) || data.correct is number) &&
+             (!('difficulty' in data) || data.difficulty is number) &&
+             (!('currentYear' in data) || data.currentYear is string) &&
+             (!('lastActive' in data) || data.lastActive is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles (for ranking)
+      // We ensure sensitive data isn't here (only stats and username)
+      allow read: if isAuthenticated();
+      
+      // Only the owner can create their profile
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == userId;
+      
+      // Only the owner can update their profile
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    request.resource.data.uid == resource.data.uid &&
+                    request.resource.data.username == resource.data.username; // Username immutable for now
+    }
+  }
+}
