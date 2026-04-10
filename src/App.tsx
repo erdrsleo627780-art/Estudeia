@@ -92,7 +92,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   // Only throw if it's a critical error that should trigger the Error Boundary
   if (error instanceof Error && (error.message.includes('permission-denied') || error.message.includes('Missing or insufficient permissions'))) {
-    throw new Error(JSON.stringify(errInfo));
+    console.warn("Firestore Permission Denied - App will continue but data might not sync.");
   }
 }
 
@@ -144,9 +144,7 @@ class ErrorBoundary extends React.Component<any, any> {
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <EduApp />
-    </ErrorBoundary>
+    <EduApp />
   );
 }
 
@@ -178,6 +176,7 @@ function EduApp() {
   });
 
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isLocalMode, setIsLocalMode] = useState(false);
   
   // Auth Listener
   useEffect(() => {
@@ -255,7 +254,7 @@ function EduApp() {
 
   // Global Ranking Listener
   useEffect(() => {
-    if (!user) {
+    if (!user || isLocalMode) {
       setGlobalRanking([]);
       return;
     }
@@ -272,6 +271,14 @@ function EduApp() {
 
   // Sync state to Firestore when it changes (debounced or on specific events)
   const syncToFirestore = useCallback(async (newState: AppState) => {
+    if (isLocalMode) {
+      localStorage.setItem('edu_local_data', JSON.stringify({
+        ...newState,
+        lastActive: new Date().toISOString()
+      }));
+      return;
+    }
+
     if (user) {
       const userData: UserData = {
         uid: user.uid,
@@ -295,11 +302,11 @@ function EduApp() {
 
   // Sync on state changes
   useEffect(() => {
-    if (user && screen !== 'onboarding') {
+    if ((user || isLocalMode) && screen !== 'onboarding') {
       const timer = setTimeout(() => syncToFirestore(state), 2000);
       return () => clearTimeout(timer);
     }
-  }, [state, user, screen, syncToFirestore]);
+  }, [state, user, isLocalMode, screen, syncToFirestore]);
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [tempProfileName, setTempProfileName] = useState(state.profileName);
@@ -531,7 +538,14 @@ function EduApp() {
       <button 
         disabled={!state.currentYear || state.profileName.length < 3}
         onClick={async () => { 
-          await syncToFirestore(state);
+          if (!isLocalMode) {
+            await syncToFirestore(state);
+          } else {
+            localStorage.setItem('edu_local_data', JSON.stringify({
+              ...state,
+              lastActive: new Date().toISOString()
+            }));
+          }
           setScreen('home'); 
         }}
         className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale"
@@ -841,7 +855,10 @@ function EduApp() {
             ) : (
               <>
                 <div className="text-2xl font-black">{state.profileName}</div>
-                <div className="text-muted text-sm mt-1">Nível {state.level} · Liga Ouro 🏆</div>
+                <div className="text-muted text-sm mt-1">
+                  Nível {state.level} · Liga Ouro 🏆
+                  {isLocalMode && <span className="ml-2 text-[10px] bg-warning/20 text-warning px-2 py-0.5 rounded-full uppercase">Modo Local</span>}
+                </div>
               </>
             )}
 
@@ -875,7 +892,15 @@ function EduApp() {
 
         <div className="px-6 text-sm font-bold text-muted tracking-widest uppercase mt-6 mb-3">Ranking Global</div>
         <div className="px-6 flex flex-col gap-2.5">
-          {globalRanking.map((u, i) => (
+          {isLocalMode ? (
+            <div className="bg-card border border-border rounded-xl p-6 text-center">
+              <div className="text-2xl mb-2">🌐</div>
+              <div className="text-sm font-bold mb-1 text-muted">Ranking Indisponível</div>
+              <div className="text-[10px] text-muted leading-relaxed">
+                Você está no Modo Local. Conecte-se ao Firebase para ver o ranking global.
+              </div>
+            </div>
+          ) : globalRanking.map((u, i) => (
             <RankingItem 
               key={u.uid}
               pos={i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}º`} 
@@ -899,29 +924,66 @@ function EduApp() {
   );
 };
 
+  const startLocalMode = () => {
+    setIsLocalMode(true);
+    setAuthError(null);
+    const localData = localStorage.getItem('edu_local_data');
+    if (localData) {
+      try {
+        const data = JSON.parse(localData);
+        setState(prev => ({
+          ...prev,
+          xp: data.xp || 0,
+          level: data.level || 1,
+          streak: data.streak || 0,
+          correct: data.correct || 0,
+          difficulty: data.difficulty || 1,
+          profileName: data.profileName || '',
+          profileAvatar: data.profileAvatar || '🦁',
+          currentYear: data.currentYear || '',
+        }));
+        setScreen('home');
+      } catch (e) {
+        setScreen('onboarding');
+      }
+    } else {
+      setScreen('onboarding');
+    }
+    setIsAuthLoading(false);
+  };
+
   return (
     <div className="max-w-md mx-auto bg-bg min-h-screen shadow-2xl relative overflow-hidden">
       {authError ? (
         <div className="flex flex-col items-center justify-center min-h-screen p-10 text-center">
-          <div className="text-6xl mb-6">🔒</div>
+          <div className="text-6xl mb-6">🔓</div>
           <h1 className="text-xl font-black mb-4 text-danger">Acesso Restrito</h1>
-          <p className="text-muted text-sm mb-8">
+          <p className="text-muted text-sm mb-8 leading-relaxed">
             {authError}
+            <br /><br />
+            Isso geralmente acontece quando as configurações do Firebase ainda não foram concluídas.
           </p>
-          <div className="bg-card border border-border rounded-xl p-4 text-left w-full text-xs leading-relaxed">
-            <p className="font-bold mb-2">Como resolver:</p>
-            <ol className="list-decimal ml-4 space-y-1">
-              <li>Acesse o Firebase Console.</li>
-              <li>Vá em <strong>Authentication</strong> &gt; <strong>Sign-in method</strong>.</li>
-              <li>Ative o provedor <strong>E-mail/Senha</strong> (Email/Password).</li>
-            </ol>
+          
+          <div className="flex flex-col gap-3 w-full">
+            <button 
+              onClick={startLocalMode}
+              className="btn-primary w-full bg-gradient-to-r from-primary to-secondary"
+            >
+              Continuar sem conta (Modo Local)
+            </button>
+            
+            <button 
+              onClick={() => window.location.reload()}
+              className="text-xs font-bold text-muted hover:text-white transition-colors"
+            >
+              Tentar reconectar ao Firebase
+            </button>
           </div>
-          <button 
-            onClick={() => window.location.reload()}
-            className="btn-primary w-full mt-8"
-          >
-            Tentar Novamente
-          </button>
+
+          <div className="mt-10 bg-card border border-border rounded-xl p-4 text-left w-full text-[10px] leading-relaxed opacity-60">
+            <p className="font-bold mb-1 uppercase tracking-wider">Nota para o Desenvolvedor:</p>
+            <p>Para usar o modo online, ative os provedores "Anônimo" ou "E-mail/Senha" no Firebase Console.</p>
+          </div>
         </div>
       ) : isAuthLoading ? (
         <div className="flex items-center justify-center min-h-screen">
