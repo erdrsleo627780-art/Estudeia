@@ -18,7 +18,9 @@ import {
   Microscope,
   BookOpen,
   History,
-  Calculator
+  Calculator,
+  Lock,
+  WifiOff
 } from 'lucide-react';
 import { Screen, AppState, Question, UserData } from './types';
 import { QUESTIONS_BY_SUBJECT, NIVEL_QUESTIONS, AVATARS } from './constants';
@@ -103,7 +105,11 @@ class ErrorBoundary extends React.Component<any, any> {
   }
 
   static getDerivedStateFromError(error: any) {
-    return { hasError: true, errorInfo: error.message };
+    // Ignore the external search analyzer error that sometimes triggers in iframe environments
+    if (error?.message?.includes('Search engine null') || error?.toString()?.includes('Search engine null')) {
+      return { hasError: false, errorInfo: '' };
+    }
+    return { hasError: true, errorInfo: error.message || String(error) };
   }
 
   render() {
@@ -143,8 +149,21 @@ class ErrorBoundary extends React.Component<any, any> {
 }
 
 export default function App() {
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      if (event.message?.includes('Search engine null') || event.error?.message?.includes('Search engine null')) {
+        event.preventDefault();
+        console.warn('Ignored external search analyzer error.');
+      }
+    };
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
   return (
-    <EduApp />
+    <ErrorBoundary>
+      <EduApp />
+    </ErrorBoundary>
   );
 }
 
@@ -173,6 +192,13 @@ function EduApp() {
     profileName: '',
     profileAvatar: '🦁',
     dailyUsage: {},
+    subjectLevels: {
+      'Matemática': 1,
+      'Português': 1,
+      'Ciências': 1,
+      'História': 1
+    },
+    currentLevel: 1
   });
 
   const [authError, setAuthError] = useState<string | null>(null);
@@ -201,6 +227,7 @@ function EduApp() {
               profileName: data.username,
               profileAvatar: data.profileAvatar,
               currentYear: data.currentYear,
+              subjectLevels: data.subjectLevels || prev.subjectLevels,
             }));
             setScreen('home');
           } else {
@@ -291,6 +318,7 @@ function EduApp() {
         profileAvatar: newState.profileAvatar,
         currentYear: newState.currentYear,
         lastActive: new Date().toISOString(),
+        subjectLevels: newState.subjectLevels,
       };
       try {
         await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
@@ -363,6 +391,8 @@ function EduApp() {
       ...prev,
       xp: prev.xp + xpGain,
       correct: correct ? prev.correct + 1 : prev.correct,
+      exCorrect: correct ? prev.exCorrect + 1 : prev.exCorrect,
+      exWrong: !correct ? prev.exWrong + 1 : prev.exWrong,
       recentResults: newRecent,
       lastWrongQ: correct ? prev.lastWrongQ : currentQ,
       dailyUsage: {
@@ -418,26 +448,61 @@ function EduApp() {
     }
   };
 
-  const nextQuestion = () => {
+  const nextQuestion = (skipReview = false) => {
     setShowFeedback(false);
     setSelectedOption(null);
     setAlgoMsg(null);
 
-    if (!feedbackCorrect && state.lastWrongQ) {
+    // Check if level finished (10 questions)
+    if (state.exIndex >= 9) {
+      const pass = state.exCorrect >= 7;
+      if (pass) {
+        const nextLvl = state.currentLevel + 1;
+        setState(prev => {
+          const newLevels = { ...prev.subjectLevels };
+          if (nextLvl > (newLevels[prev.currentSubject] || 1)) {
+            newLevels[prev.currentSubject] = nextLvl;
+          }
+          return {
+            ...prev,
+            subjectLevels: newLevels,
+            xp: prev.xp + 500 // Bonus for level completion
+          };
+        });
+        alert(`🎉 Nível ${state.currentLevel} concluído com sucesso! (+500 XP)`);
+      } else {
+        alert(`📚 Você acertou ${state.exCorrect}/10. Precisa de pelo menos 7 para passar!`);
+      }
+      setScreen('levels');
+      return;
+    }
+
+    if (!feedbackCorrect && state.lastWrongQ && !skipReview) {
       setScreen('review');
     } else {
       setState(prev => ({ ...prev, exIndex: prev.exIndex + 1 }));
+      setScreen('exercicio');
+      startTimer(30);
+    }
+  };
+
+  const prevQuestion = () => {
+    if (state.exIndex > 0) {
+      setShowFeedback(false);
+      setSelectedOption(null);
+      setAlgoMsg(null);
+      setState(prev => ({ ...prev, exIndex: prev.exIndex - 1 }));
       startTimer(30);
     }
   };
 
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
 
-  const startExercicio = async (subject: string, topic: string, diff: number, isDaily: boolean = false) => {
+  const startExercicio = async (subject: string, topic: string, diff: number, isDaily: boolean = false, levelNum?: number, forceAI: boolean = false) => {
     const today = new Date().toISOString().split('T')[0];
     const usage = state.dailyUsage[subject];
-    if (usage && usage.lastDate === today && usage.count >= 100) {
-      alert(`Você já atingiu o limite de 100 perguntas para ${subject} hoje! Tente novamente amanhã.`);
+    if (usage && usage.lastDate === today && usage.count >= 200) {
+      alert(`Você já atingiu o limite de 200 perguntas para ${subject} hoje! Tente novamente amanhã.`);
       return;
     }
 
@@ -447,41 +512,58 @@ function EduApp() {
     
     try {
       let qs: Question[] = [];
+      const levelDiff = levelNum ? (levelNum <= 30 ? 1 : levelNum <= 70 ? 2 : 3) : diff;
       
-      if (isDaily) {
-        // Daily Pack Logic: 100 questions
-        // We check if we have them in Firestore/LocalStorage for today
-        const cacheKey = `daily_${subject}_${today}`;
-        const cached = localStorage.getItem(cacheKey);
+      // 1. Try to find local questions first (Strictly Offline First)
+      if (!forceAI) {
+        const subjectQs = QUESTIONS_BY_SUBJECT[subject] || QUESTIONS_BY_SUBJECT["Matemática"];
+        const localPool = subjectQs[levelDiff] || subjectQs[2] || [];
         
-        if (cached) {
-          qs = JSON.parse(cached);
-        } else {
-          // Generate 100 questions in 4 batches of 25
-          for (let i = 1; i <= 4; i++) {
-            setLoadingProgress(i * 25);
-            const batch = await generateQuestions(subject, "Tópicos variados do currículo escolar", diff, 25, `${today}-batch-${i}`);
-            qs.push(...batch);
-          }
-          localStorage.setItem(cacheKey, JSON.stringify(qs));
+        if (localPool.length > 0) {
+          // If it's a level, we want 10. If we have fewer, we take what we have.
+          const countNeeded = levelNum ? 10 : 5;
+          qs = shuffleArr([...localPool]).slice(0, countNeeded);
+          console.log(`Usando ${qs.length} questões offline para ${subject}`);
         }
-      } else {
-        // Standard 5 questions
-        qs = await generateQuestions(subject, topic, diff, 5);
       }
 
+      // 2. If no local questions found OR forced AI, use Gemini
+      if (qs.length === 0 || forceAI) {
+        if (levelNum) {
+          qs = await generateQuestions(subject, `Nível ${levelNum} de progressão`, levelDiff, 10, `level-${subject}-${levelNum}`);
+        } else if (isDaily) {
+          const cacheKey = `daily_${subject}_${today}`;
+          const cached = localStorage.getItem(cacheKey);
+          
+          if (cached && !forceAI) {
+            qs = JSON.parse(cached);
+          } else {
+            for (let i = 1; i <= 4; i++) {
+              setLoadingProgress(i * 25);
+              const batch = await generateQuestions(subject, "Tópicos variados do currículo escolar", diff, 25, `${today}-batch-${i}`);
+              qs.push(...batch);
+            }
+            localStorage.setItem(cacheKey, JSON.stringify(qs));
+          }
+        } else {
+          qs = await generateQuestions(subject, topic, diff, 5);
+        }
+      }
+
+      // 3. Final Fallback (Should not happen with the logic above, but for safety)
       if (qs.length === 0) {
         const subjectQs = QUESTIONS_BY_SUBJECT[subject] || QUESTIONS_BY_SUBJECT["Matemática"];
-        setExQuestions(shuffleArr([...(subjectQs[diff] || subjectQs[2])]));
-      } else {
-        setExQuestions(qs);
+        qs = shuffleArr([...(subjectQs[levelDiff] || subjectQs[2])]).slice(0, 10);
       }
+
+      setExQuestions(qs);
 
       setState(prev => ({
         ...prev,
         currentSubject: subject,
-        currentTopic: isDaily ? 'Desafio 100 Questões' : topic,
-        difficulty: diff,
+        currentTopic: levelNum ? `Nível ${levelNum}` : (isDaily ? 'Desafio 100 Questões' : topic),
+        currentLevel: levelNum || 1,
+        difficulty: levelNum ? (levelNum <= 30 ? 1 : levelNum <= 70 ? 2 : 3) : diff,
         exIndex: 0,
         exCorrect: 0,
         exWrong: 0,
@@ -621,22 +703,26 @@ function EduApp() {
           <SubjectCard 
             title="Matemática" icon={<Calculator size={28} className="text-primary" />} 
             mastery="Frações" progress={63} color="primary"
-            onClick={() => startExercicio('Matemática', 'Frações', 2)}
+            onClick={() => { setState(prev => ({ ...prev, currentSubject: 'Matemática' })); setScreen('levels'); }}
+            onDaily={() => startExercicio('Matemática', 'Desafio Diário', 2, true)}
           />
           <SubjectCard 
             title="Português" icon={<BookOpen size={28} className="text-secondary" />} 
             mastery="Gramática" progress={52} color="secondary"
-            onClick={() => startExercicio('Português', 'Interpretação', 1)}
+            onClick={() => { setState(prev => ({ ...prev, currentSubject: 'Português' })); setScreen('levels'); }}
+            onDaily={() => startExercicio('Português', 'Desafio Diário', 2, true)}
           />
           <SubjectCard 
             title="Ciências" icon={<Microscope size={28} className="text-success" />} 
             mastery="Biologia" progress={56} color="success"
-            onClick={() => startExercicio('Ciências', 'Biologia Celular', 3)}
+            onClick={() => { setState(prev => ({ ...prev, currentSubject: 'Ciências' })); setScreen('levels'); }}
+            onDaily={() => startExercicio('Ciências', 'Biologia Celular', 3)}
           />
           <SubjectCard 
             title="História" icon={<History size={28} className="text-warning" />} 
             mastery="Brasil" progress={45} color="warning"
-            onClick={() => startExercicio('História', 'Brasil Colonial', 2)}
+            onClick={() => { setState(prev => ({ ...prev, currentSubject: 'História' })); setScreen('levels'); }}
+            onDaily={() => startExercicio('História', 'Brasil Colonial', 2)}
           />
         </div>
 
@@ -766,9 +852,30 @@ function EduApp() {
                 <div className="text-sm text-muted">
                   {feedbackCorrect ? `Excelente! ${['Fácil', 'Médio', 'Difícil'][state.difficulty - 1]} resolvido.` : `A resposta correta era: ${q.opts[q.ans]}`}
                 </div>
-                <button className="btn-next" onClick={nextQuestion}>
-                  {!feedbackCorrect && state.lastWrongQ ? '📖 Ver Explicação →' : 'Próxima →'}
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button className="btn-next" onClick={() => nextQuestion(false)}>
+                    {!feedbackCorrect && state.lastWrongQ ? '📖 Ver Explicação →' : 'Próxima →'}
+                  </button>
+                  
+                  {!feedbackCorrect && (
+                    <div className="flex gap-2">
+                      {state.exIndex > 0 && (
+                        <button 
+                          className="btn-next bg-card border border-border flex-1 text-[10px]" 
+                          onClick={prevQuestion}
+                        >
+                          ← Voltar Anterior
+                        </button>
+                      )}
+                      <button 
+                        className="btn-next bg-card border border-border flex-1 text-[10px]" 
+                        onClick={() => nextQuestion(true)}
+                      >
+                        Pular Questão →
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
@@ -815,9 +922,20 @@ function EduApp() {
           </div>
 
           <div className="p-5 px-6 flex flex-col gap-3">
-            <button className="btn-primary w-full max-w-none" onClick={() => setScreen('exercicio')}>Tentar outra questão →</button>
+            <button className="btn-primary w-full max-w-none" onClick={() => nextQuestion(true)}>Próxima Questão →</button>
             <button 
               className="btn-primary w-full max-w-none bg-card shadow-none border border-border" 
+              onClick={() => {
+                setShowFeedback(false);
+                setSelectedOption(null);
+                setAlgoMsg(null);
+                setScreen('exercicio');
+              }}
+            >
+              Tentar Novamente
+            </button>
+            <button 
+              className="btn-primary w-full max-w-none bg-transparent shadow-none text-muted text-xs" 
               onClick={() => setScreen('home')}
             >
               Voltar ao Início
@@ -828,6 +946,81 @@ function EduApp() {
     );
   };
 
+  const renderLevels = () => {
+    const currentSubject = state.currentSubject || 'Matemática';
+    const unlockedLevel = state.subjectLevels[currentSubject] || 1;
+    
+    return (
+      <div className="flex flex-col min-h-screen bg-bg animate-fade-in pb-20">
+        <div className="p-5 px-6 flex items-center justify-between bg-card border-b border-border sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button className="w-10 h-10 rounded-full bg-card2 flex items-center justify-center text-white" onClick={() => setScreen('home')}>
+              <ChevronLeft size={20} />
+            </button>
+            <div>
+              <div className="text-lg font-extrabold">{currentSubject}</div>
+              <div className="text-[10px] text-muted uppercase tracking-widest font-bold">Jornada de Conhecimento</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => startExercicio(currentSubject, "Desafio Aleatório", 2, false, unlockedLevel, true)}
+            className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-[10px] font-bold border border-primary/20 hover:bg-primary/20 transition-all"
+          >
+            <Zap size={12} className="fill-primary" />
+            GERAR COM IA
+          </button>
+        </div>
+
+        <div className="bg-primary/5 p-4 mx-6 mt-6 rounded-xl border border-primary/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+              <WifiOff size={18} />
+            </div>
+            <div>
+              <div className="text-xs font-bold">Modo Offline Pronto</div>
+              <div className="text-[10px] text-muted">Questões locais disponíveis sem internet.</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6">
+          <div className="grid grid-cols-4 gap-4">
+            {Array.from({ length: 100 }).map((_, i) => {
+              const levelNum = i + 1;
+              const isLocked = levelNum > unlockedLevel;
+              const isCurrent = levelNum === unlockedLevel;
+              
+              return (
+                <div 
+                  key={levelNum}
+                  onClick={() => !isLocked && startExercicio(currentSubject, `Nível ${levelNum}`, 2, false, levelNum)}
+                  className={`
+                    aspect-square rounded-2xl flex flex-col items-center justify-center border-2 transition-all cursor-pointer
+                    ${isLocked ? 'bg-card/50 border-border opacity-50 grayscale' : 
+                      isCurrent ? 'bg-primary/20 border-primary shadow-[0_0_15px_rgba(108,99,255,0.3)]' : 
+                      'bg-card border-border hover:border-primary/50'}
+                  `}
+                >
+                  {isLocked ? (
+                    <Lock size={16} className="text-muted" />
+                  ) : (
+                    <>
+                      <div className={`text-lg font-black ${isCurrent ? 'text-primary' : 'text-white'}`}>{levelNum}</div>
+                      <div className="flex gap-0.5 mt-1">
+                        <Star size={6} className="fill-warning text-warning" />
+                        <Star size={6} className="fill-warning text-warning" />
+                        <Star size={6} className="fill-warning text-warning" />
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
   const renderPerfil = () => {
     const saveProfile = () => {
       setState(prev => ({ ...prev, profileName: tempProfileName }));
@@ -978,6 +1171,7 @@ function EduApp() {
           profileName: data.profileName || '',
           profileAvatar: data.profileAvatar || '🦁',
           currentYear: data.currentYear || '',
+          subjectLevels: data.subjectLevels || prev.subjectLevels,
         }));
         setScreen('home');
       } catch (e) {
@@ -1030,6 +1224,7 @@ function EduApp() {
         <>
           {screen === 'onboarding' && renderOnboarding()}
           {screen === 'home' && renderHome()}
+          {screen === 'levels' && renderLevels()}
           {screen === 'exercicio' && renderExercicio()}
           {screen === 'review' && renderReview()}
           {screen === 'perfil' && renderPerfil()}
@@ -1062,30 +1257,38 @@ function EduApp() {
 }
 
 // Sub-components
-function SubjectCard({ title, icon, mastery, progress, color, onClick }: any) {
+function SubjectCard({ title, icon, mastery, progress, color, onClick, onDaily }: any) {
   const strokeColor = color === 'primary' ? '#6C63FF' : color === 'secondary' ? '#FF6584' : color === 'success' ? '#43D787' : '#FFB347';
   return (
-    <div onClick={onClick} className="bg-card rounded-xl p-5 border border-border cursor-pointer hover:translate-y-[-4px] hover:shadow-[0_12px_30px_rgba(0,0,0,0.3)] transition-all duration-250 relative overflow-hidden">
-      <div className={`absolute -top-7 -right-7 w-20 h-20 rounded-full opacity-15 ${color === 'primary' ? 'bg-primary' : color === 'secondary' ? 'bg-secondary' : color === 'success' ? 'bg-success' : 'bg-warning'}`}></div>
-      <div className="text-3xl mb-2.5">{icon}</div>
-      <div className="text-sm font-bold mb-1.5">{title}</div>
-      <div className="text-[10px] text-muted mb-2.5">Maestria em {mastery}</div>
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] text-muted leading-tight">
-          {title === 'Matemática' ? 'Geometria: 40%\nFrações: 85%' : title === 'Português' ? 'Gramática: 72%\nRedação: 55%' : title === 'Ciências' ? 'Biologia: 78%\nQuímica: 30%' : 'Brasil: 68%\nGeral: 45%'}
+    <div className="bg-card rounded-xl border border-border cursor-pointer hover:translate-y-[-4px] hover:shadow-[0_12px_30px_rgba(0,0,0,0.3)] transition-all duration-250 relative overflow-hidden flex flex-col">
+      <div onClick={onClick} className="p-5 flex-1">
+        <div className={`absolute -top-7 -right-7 w-20 h-20 rounded-full opacity-15 ${color === 'primary' ? 'bg-primary' : color === 'secondary' ? 'bg-secondary' : color === 'success' ? 'bg-success' : 'bg-warning'}`}></div>
+        <div className="text-3xl mb-2.5">{icon}</div>
+        <div className="text-sm font-bold mb-1.5">{title}</div>
+        <div className="text-[10px] text-muted mb-2.5">Maestria em {mastery}</div>
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] text-muted leading-tight">
+            {title === 'Matemática' ? 'Geometria: 40%\nFrações: 85%' : title === 'Português' ? 'Gramática: 72%\nRedação: 55%' : title === 'Ciências' ? 'Biologia: 78%\nQuímica: 30%' : 'Brasil: 68%\nGeral: 45%'}
+          </div>
+          <div className="relative w-10 h-10">
+            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+              <circle className="fill-none stroke-card2 stroke-[5]" cx="18" cy="18" r="15.5" />
+              <circle 
+                className="fill-none stroke-[5] stroke-linecap-round transition-all duration-1000" 
+                cx="18" cy="18" r="15.5" 
+                stroke={strokeColor}
+                strokeDasharray={`${(progress / 100) * 97} 97`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">{progress}%</div>
+          </div>
         </div>
-        <div className="relative w-12 h-12">
-          <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-            <circle className="fill-none stroke-card2 stroke-[5]" cx="18" cy="18" r="15.5" />
-            <circle 
-              className="fill-none stroke-[5] stroke-linecap-round transition-all duration-1000" 
-              cx="18" cy="18" r="15.5" 
-              stroke={strokeColor}
-              strokeDasharray={`${(progress / 100) * 97} 97`}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">{progress}%</div>
-        </div>
+      </div>
+      <div 
+        onClick={(e) => { e.stopPropagation(); onDaily(); }}
+        className="bg-white/5 border-t border-border p-2.5 text-center text-[9px] font-black uppercase tracking-widest hover:bg-primary/20 transition-colors text-primary"
+      >
+        ⚡ Desafio 100 Qs
       </div>
     </div>
   );

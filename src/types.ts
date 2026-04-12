@@ -14,7 +14,7 @@ export interface QuestionDatabase {
   [subject: string]: SubjectQuestions;
 }
 
-export type Screen = 'onboarding' | 'home' | 'exercicio' | 'review' | 'perfil';
+export type Screen = 'onboarding' | 'home' | 'levels' | 'exercicio' | 'review' | 'perfil';
 
 export interface UserData {
   uid: string;
@@ -27,6 +27,7 @@ export interface UserData {
   profileAvatar: string;
   currentYear: string;
   lastActive: string;
+  subjectLevels?: { [subject: string]: number };
 }
 
 export interface AppState {
@@ -48,4 +49,6 @@ export interface AppState {
   profileName: string;
   profileAvatar: string;
   dailyUsage: { [subject: string]: { count: number; lastDate: string } };
+  subjectLevels: { [subject: string]: number };
+  currentLevel: number;
 }

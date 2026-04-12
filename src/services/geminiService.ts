@@ -19,9 +19,9 @@ export async function generateQuestions(subject: string, topic: string, difficul
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -46,7 +46,7 @@ export async function generateQuestions(subject: string, topic: string, difficul
       }
     });
 
-    const text = response.response.text();
+    const text = response.text;
     if (!text) throw new Error("Resposta vazia do Gemini");
     
     return JSON.parse(text) as Question[];
