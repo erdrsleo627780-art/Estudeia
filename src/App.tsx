@@ -471,27 +471,39 @@ function EduApp() {
     setSelectedOption(null);
     setAlgoMsg(null);
 
-    // Check if level finished (10 questions)
-    if (state.exIndex >= 9) {
-      const pass = state.exCorrect >= 7;
-      if (pass) {
-        const nextLvl = state.currentLevel + 1;
-        setState(prev => {
-          const newLevels = { ...prev.subjectLevels };
-          if (nextLvl > (newLevels[prev.currentSubject] || 1)) {
-            newLevels[prev.currentSubject] = nextLvl;
-          }
-          return {
-            ...prev,
-            subjectLevels: newLevels,
-            xp: prev.xp + 500 // Bonus for level completion
-          };
-        });
-        alert(`🎉 Nível ${state.currentLevel} concluído com sucesso! (+500 XP)`);
+    // Check if level finished
+    if (state.exIndex >= exQuestions.length - 1) {
+      const isLevel = !!state.currentLevel && state.currentLevel > 0;
+      const pass = state.exCorrect >= (exQuestions.length * 0.7); // 70% to pass
+      
+      if (isLevel) {
+        if (pass) {
+          const nextLvl = state.currentLevel + 1;
+          setState(prev => {
+            const newLevels = { ...prev.subjectLevels };
+            if (nextLvl > (newLevels[prev.currentSubject] || 1)) {
+              newLevels[prev.currentSubject] = nextLvl;
+            }
+            return {
+              ...prev,
+              subjectLevels: newLevels,
+              xp: prev.xp + 500 // Bonus for level completion
+            };
+          });
+          
+          // Automatic next level transition
+          setAlgoMsg({ text: `🎉 Nível ${state.currentLevel} concluído! Iniciando Nível ${nextLvl}...`, type: 'up' });
+          setTimeout(() => {
+            startExercicio(state.currentSubject, `Nível ${nextLvl}`, state.difficulty, false, nextLvl);
+          }, 1500);
+        } else {
+          alert(`📚 Você acertou ${state.exCorrect}/${exQuestions.length}. Precisa de pelo menos 70% para passar!`);
+          setScreen('levels');
+        }
       } else {
-        alert(`📚 Você acertou ${state.exCorrect}/10. Precisa de pelo menos 7 para passar!`);
+        // Daily challenge or other exercise
+        setScreen('home');
       }
-      setScreen('levels');
       return;
     }
 
