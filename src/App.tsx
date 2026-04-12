@@ -168,12 +168,14 @@ export default function App() {
 }
 
 function EduApp() {
-  const [screen, setScreen] = useState<Screen>('onboarding');
+  const [screen, setScreen] = useState<Screen | 'login'>('login');
   const [user, setUser] = useState<any>(null);
   const [globalRanking, setGlobalRanking] = useState<UserData[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [userPassword, setUserPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
   
-  const [state, setState] = useState<AppState>({
+  const initialAppState: AppState = {
     xp: 0,
     level: 1,
     streak: 0,
@@ -199,15 +201,15 @@ function EduApp() {
       'História': 1
     },
     currentLevel: 1
-  });
+  };
+
+  const [state, setState] = useState<AppState>(initialAppState);
 
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLocalMode, setIsLocalMode] = useState(false);
   
   // Auth Listener
   useEffect(() => {
-    const GUEST_PASSWORD = 'edu_adaptive_guest_123';
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -238,46 +240,53 @@ function EduApp() {
         }
       } else {
         setUser(null);
-        
-        // Try real anonymous auth first
-        try {
-          await signInAnonymously(auth);
-        } catch (err: any) {
-          console.warn("Standard Anonymous Auth failed, trying simulation:", err.code);
-          
-          // If standard anonymous auth is disabled, simulate it using Email/Password
-          if (err.code === 'auth/admin-restricted-operation' || err.code === 'auth/operation-not-allowed') {
-            let guestId = localStorage.getItem('edu_guest_id');
-            if (!guestId) {
-              guestId = 'g_' + Math.random().toString(36).substring(2, 15);
-              localStorage.setItem('edu_guest_id', guestId);
-            }
-            
-            const email = `${guestId}@edu.com`;
-            try {
-              await signInWithEmailAndPassword(auth, email, GUEST_PASSWORD);
-            } catch (signInErr: any) {
-              if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
-                try {
-                  await createUserWithEmailAndPassword(auth, email, GUEST_PASSWORD);
-                } catch (createErr: any) {
-                  console.error("Simulation failed:", createErr);
-                  setAuthError('Erro ao criar conta automática. Verifique se o provedor de E-mail/Senha está ativo no Firebase.');
-                }
-              } else {
-                console.error("Simulation sign-in failed:", signInErr);
-                setAuthError('Erro ao acessar conta automática.');
-              }
-            }
-          } else {
-            setAuthError('Erro de autenticação: ' + err.message);
-          }
-        }
+        setScreen('login');
       }
       setIsAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  const handleCreateUser = async () => {
+    if (state.profileName.length < 3 || userPassword.length !== 4) return;
+    
+    setLoginError(null);
+    const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
+    
+    try {
+      // Check if user already exists
+      try {
+        await signInWithEmailAndPassword(auth, email, userPassword);
+        setLoginError('Este usuário já existe. Tente fazer login.');
+        return;
+      } catch (e: any) {
+        if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+          // Proceed to create
+          await createUserWithEmailAndPassword(auth, email, userPassword);
+          // Initial sync will happen in the button click handler or useEffect
+        } else {
+          throw e;
+        }
+      }
+    } catch (error: any) {
+      console.error("Erro ao criar usuário:", error);
+      setLoginError('Erro ao criar usuário: ' + error.message);
+    }
+  };
+
+  const handleLogin = async () => {
+    if (state.profileName.length < 3 || userPassword.length !== 4) return;
+    
+    setLoginError(null);
+    const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
+    
+    try {
+      await signInWithEmailAndPassword(auth, email, userPassword);
+    } catch (error: any) {
+      console.error("Erro ao fazer login:", error);
+      setLoginError('Usuário ou senha incorretos.');
+    }
+  };
 
   // Global Ranking Listener
   useEffect(() => {
@@ -375,7 +384,17 @@ function EduApp() {
     stopTimer();
     setSelectedOption(idx);
     
+    // Safety check for questions array
+    if (!exQuestions || exQuestions.length === 0) {
+      setScreen('home');
+      return;
+    }
+
     let currentQ = exQuestions[state.exIndex % exQuestions.length];
+    if (!currentQ) {
+      setScreen('home');
+      return;
+    }
 
     const correct = idx === currentQ.ans;
     setFeedbackCorrect(correct);
@@ -514,25 +533,29 @@ function EduApp() {
       let qs: Question[] = [];
       const levelDiff = levelNum ? (levelNum <= 30 ? 1 : levelNum <= 70 ? 2 : 3) : diff;
       
+      // Diversify subjects if it's a general exercise or high level
+      const subjects = ["Matemática", "Português", "Ciências", "História"];
+      const targetSubject = subject === "Geral" ? subjects[Math.floor(Math.random() * subjects.length)] : subject;
+
       // 1. Try to find local questions first (Strictly Offline First)
       if (!forceAI) {
-        const subjectQs = QUESTIONS_BY_SUBJECT[subject] || QUESTIONS_BY_SUBJECT["Matemática"];
+        const subjectQs = QUESTIONS_BY_SUBJECT[targetSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
         const localPool = subjectQs[levelDiff] || subjectQs[2] || [];
         
         if (localPool.length > 0) {
           // If it's a level, we want 10. If we have fewer, we take what we have.
           const countNeeded = levelNum ? 10 : 5;
           qs = shuffleArr([...localPool]).slice(0, countNeeded);
-          console.log(`Usando ${qs.length} questões offline para ${subject}`);
+          console.log(`Usando ${qs.length} questões offline para ${targetSubject}`);
         }
       }
 
       // 2. If no local questions found OR forced AI, use Gemini
       if (qs.length === 0 || forceAI) {
         if (levelNum) {
-          qs = await generateQuestions(subject, `Nível ${levelNum} de progressão`, levelDiff, 10, `level-${subject}-${levelNum}`);
+          qs = await generateQuestions(targetSubject, `Nível ${levelNum} de progressão para ${state.currentYear}`, levelDiff, 10, `level-${targetSubject}-${levelNum}-${state.currentYear}`, state.currentYear);
         } else if (isDaily) {
-          const cacheKey = `daily_${subject}_${today}`;
+          const cacheKey = `daily_${targetSubject}_${today}_${state.currentYear}`;
           const cached = localStorage.getItem(cacheKey);
           
           if (cached && !forceAI) {
@@ -540,19 +563,19 @@ function EduApp() {
           } else {
             for (let i = 1; i <= 4; i++) {
               setLoadingProgress(i * 25);
-              const batch = await generateQuestions(subject, "Tópicos variados do currículo escolar", diff, 25, `${today}-batch-${i}`);
+              const batch = await generateQuestions(targetSubject, `Tópicos variados do currículo de ${state.currentYear}`, diff, 25, `${today}-batch-${i}-${state.currentYear}`, state.currentYear);
               qs.push(...batch);
             }
             localStorage.setItem(cacheKey, JSON.stringify(qs));
           }
         } else {
-          qs = await generateQuestions(subject, topic, diff, 5);
+          qs = await generateQuestions(targetSubject, `${topic} para ${state.currentYear}`, diff, 5, undefined, state.currentYear);
         }
       }
 
-      // 3. Final Fallback (Should not happen with the logic above, but for safety)
+      // 3. Final Fallback
       if (qs.length === 0) {
-        const subjectQs = QUESTIONS_BY_SUBJECT[subject] || QUESTIONS_BY_SUBJECT["Matemática"];
+        const subjectQs = QUESTIONS_BY_SUBJECT[targetSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
         qs = shuffleArr([...(subjectQs[levelDiff] || subjectQs[2])]).slice(0, 10);
       }
 
@@ -560,7 +583,7 @@ function EduApp() {
 
       setState(prev => ({
         ...prev,
-        currentSubject: subject,
+        currentSubject: targetSubject,
         currentTopic: levelNum ? `Nível ${levelNum}` : (isDaily ? 'Desafio 100 Questões' : topic),
         currentLevel: levelNum || 1,
         difficulty: levelNum ? (levelNum <= 30 ? 1 : levelNum <= 70 ? 2 : 3) : diff,
@@ -587,11 +610,80 @@ function EduApp() {
     return newArr;
   };
 
+  const renderLogin = () => (
+    <div className="flex flex-col items-center justify-center text-center p-10 min-h-screen bg-gradient-to-br from-bg2 to-bg3 animate-fade-in">
+      <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(212,185,150,0.4)]">🎓</div>
+      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">EduAdaptive</h1>
+      <p className="text-muted text-sm mb-8 leading-relaxed">
+        Acesse sua jornada de conhecimento.<br/>
+        <span className="font-bold text-primary">Lembre-se do seu usuário para acessar novamente!</span>
+      </p>
+      
+      <div className="w-full max-w-xs flex flex-col gap-6">
+        <div className="flex flex-col gap-2 text-left">
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Usuário</label>
+          <div className="relative">
+            <User className="absolute left-3 top-3 text-muted" size={18} />
+            <input 
+              type="text" 
+              placeholder="@usuario" 
+              value={state.profileName}
+              onChange={(e) => {
+                const val = e.target.value;
+                setState(prev => ({ ...prev, profileName: val.startsWith('@') ? val : `@${val}` }));
+              }}
+              className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 text-left">
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha (4 dígitos)</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 text-muted" size={18} />
+            <input 
+              type="password" 
+              maxLength={4}
+              placeholder="****" 
+              value={userPassword}
+              onChange={(e) => setUserPassword(e.target.value.replace(/\D/g, ''))}
+              className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold tracking-widest"
+            />
+          </div>
+        </div>
+
+        {loginError && <div className="text-[10px] text-danger font-bold">{loginError}</div>}
+
+        <div className="flex flex-col gap-3 mt-4">
+          <button 
+            onClick={handleLogin}
+            disabled={state.profileName.length < 3 || userPassword.length !== 4}
+            className="btn-primary w-full max-w-none disabled:opacity-50"
+          >
+            Entrar
+          </button>
+          <button 
+            onClick={() => {
+              setState(initialAppState);
+              setScreen('onboarding');
+            }}
+            className="text-xs font-bold text-muted hover:text-primary transition-colors"
+          >
+            Criar Nova Conta
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderOnboarding = () => (
     <div className="flex flex-col items-center justify-center text-center p-10 min-h-screen bg-gradient-to-br from-bg2 to-bg3 animate-fade-in">
       <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(212,185,150,0.4)]">🎓</div>
-      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">Bem-vindo!</h1>
-      <p className="text-muted text-sm mb-8 leading-relaxed">Crie seu perfil para começar.</p>
+      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">Novo Perfil</h1>
+      <p className="text-muted text-sm mb-8 leading-relaxed">
+        Defina seus dados e uma senha de 4 dígitos.<br/>
+        <span className="font-bold text-primary">Lembre-se do seu usuário para acessar novamente!</span>
+      </p>
       
       <div className="w-full max-w-xs flex flex-col gap-6">
         <div className="flex flex-col gap-2 text-left">
@@ -610,6 +702,22 @@ function EduApp() {
             />
           </div>
           {state.profileName.length < 3 && <span className="text-[10px] text-danger ml-1">Mínimo 3 caracteres</span>}
+        </div>
+
+        <div className="flex flex-col gap-2 text-left">
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha de Acesso (4 dígitos)</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 text-muted" size={18} />
+            <input 
+              type="password" 
+              maxLength={4}
+              placeholder="****" 
+              value={userPassword}
+              onChange={(e) => setUserPassword(e.target.value.replace(/\D/g, ''))}
+              className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold tracking-widest"
+            />
+          </div>
+          {userPassword.length !== 4 && <span className="text-[10px] text-danger ml-1">A senha deve ter 4 números</span>}
         </div>
 
         <div className="flex flex-col gap-2 text-left">
@@ -644,31 +752,29 @@ function EduApp() {
         </div>
       </div>
       
+      {loginError && <div className="text-[10px] text-danger font-bold mt-4">{loginError}</div>}
+
       <button 
-        disabled={!state.currentYear || state.profileName.length < 3}
+        disabled={!state.currentYear || state.profileName.length < 3 || userPassword.length !== 4}
         onClick={async () => { 
-          try {
-            if (!isLocalMode && auth.currentUser) {
-              await syncToFirestore(state);
-            } else {
-              localStorage.setItem('edu_local_data', JSON.stringify({
-                ...state,
-                lastActive: new Date().toISOString()
-              }));
-            }
-          } catch (e) {
-            console.error("Erro ao sincronizar dados iniciais:", e);
-          }
-          setScreen('home'); 
+          await handleCreateUser();
+          // The auth listener will handle navigation to home if successful
         }}
         className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale relative group"
       >
         Começar a Estudar →
-        {(!state.currentYear || state.profileName.length < 3) && (
+        {(!state.currentYear || state.profileName.length < 3 || userPassword.length !== 4) && (
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-danger text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
-            Preencha seu nome e escolha o ano escolar
+            Preencha todos os campos corretamente
           </div>
         )}
+      </button>
+
+      <button 
+        onClick={() => setScreen('login')}
+        className="mt-4 text-xs font-bold text-muted hover:text-primary transition-colors"
+      >
+        Já tenho uma conta
       </button>
     </div>
   );
@@ -1216,75 +1322,47 @@ function EduApp() {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-bg min-h-screen shadow-2xl relative overflow-hidden">
-      {authError ? (
-        <div className="flex flex-col items-center justify-center min-h-screen p-10 text-center">
-          <div className="text-6xl mb-6">🔓</div>
-          <h1 className="text-xl font-black mb-4 text-danger">Acesso Restrito</h1>
-          <p className="text-muted text-sm mb-8 leading-relaxed">
-            {authError}
-            <br /><br />
-            Isso geralmente acontece quando as configurações do Firebase ainda não foram concluídas.
-          </p>
-          
-          <div className="flex flex-col gap-3 w-full">
-            <button 
-              onClick={startLocalMode}
-              className="btn-primary w-full bg-gradient-to-r from-primary to-secondary"
-            >
-              Continuar sem conta (Modo Local)
-            </button>
-            
-            <button 
-              onClick={() => window.location.reload()}
-              className="text-xs font-bold text-muted hover:text-white transition-colors"
-            >
-              Tentar reconectar ao Firebase
-            </button>
+    <ErrorBoundary>
+      <div className="max-w-md mx-auto bg-bg min-h-screen shadow-2xl relative overflow-hidden">
+        {isAuthLoading ? (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
-
-          <div className="mt-10 bg-card border border-border rounded-xl p-4 text-left w-full text-[10px] leading-relaxed opacity-60">
-            <p className="font-bold mb-1 uppercase tracking-wider">Nota para o Desenvolvedor:</p>
-            <p>Para usar o modo online, ative os provedores "Anônimo" ou "E-mail/Senha" no Firebase Console.</p>
-          </div>
-        </div>
-      ) : isAuthLoading ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : (
-        <>
-          {screen === 'onboarding' && renderOnboarding()}
-          {screen === 'home' && renderHome()}
-          {screen === 'levels' && renderLevels()}
-          {screen === 'exercicio' && renderExercicio()}
-          {screen === 'review' && renderReview()}
-          {screen === 'perfil' && renderPerfil()}
-        </>
-      )}
-
-      <AnimatePresence>
-        {showLevelUp && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 flex items-center justify-center z-[999] p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.5, rotate: -5 }}
-              animate={{ scale: 1, rotate: 0 }}
-              className="bg-gradient-to-br from-bg2 to-bg3 border-2 border-primary rounded-3xl p-10 px-8 text-center max-w-[300px]"
-            >
-              <div className="text-8xl mb-4">🎉</div>
-              <h2 className="text-3xl font-black bg-gradient-to-r from-warning to-secondary bg-clip-text text-transparent mb-2">LEVEL UP!</h2>
-              <p className="text-muted text-sm mb-6">Você subiu para o <strong>Nível {state.level}</strong>!<br />Continue assim, {state.profileName}!</p>
-              <button className="btn-primary w-full max-w-[200px]" onClick={() => setShowLevelUp(false)}>Continuar →</button>
-            </motion.div>
-          </motion.div>
+        ) : (
+          <>
+            {screen === 'login' && renderLogin()}
+            {screen === 'onboarding' && renderOnboarding()}
+            {screen === 'home' && renderHome()}
+            {screen === 'levels' && renderLevels()}
+            {screen === 'exercicio' && renderExercicio()}
+            {screen === 'review' && renderReview()}
+            {screen === 'perfil' && renderPerfil()}
+          </>
         )}
-      </AnimatePresence>
-    </div>
+
+        <AnimatePresence>
+          {showLevelUp && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 flex items-center justify-center z-[999] p-6"
+            >
+              <motion.div 
+                initial={{ scale: 0.5, rotate: -5 }}
+                animate={{ scale: 1, rotate: 0 }}
+                className="bg-gradient-to-br from-bg2 to-bg3 border-2 border-primary rounded-3xl p-10 px-8 text-center max-w-[300px]"
+              >
+                <div className="text-8xl mb-4">🎉</div>
+                <h2 className="text-3xl font-black bg-gradient-to-r from-warning to-secondary bg-clip-text text-transparent mb-2">LEVEL UP!</h2>
+                <p className="text-muted text-sm mb-6">Você subiu para o <strong>Nível {state.level}</strong>!<br />Continue assim, {state.profileName}!</p>
+                <button className="btn-primary w-full max-w-[200px]" onClick={() => setShowLevelUp(false)}>Continuar →</button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </ErrorBoundary>
   );
 }
 

@@ -3,13 +3,14 @@ import { Question } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-export async function generateQuestions(subject: string, topic: string, difficulty: number, count: number = 5, seed?: string): Promise<Question[]> {
+export async function generateQuestions(subject: string, topic: string, difficulty: number, count: number = 5, seed?: string, schoolYear?: string): Promise<Question[]> {
   const difficultyLabel = ['', 'Fácil', 'Médio', 'Difícil'][difficulty];
   
   const prompt = `Gere ${count} perguntas de múltipla escolha para a matéria "${subject}" sobre o tema "${topic}". 
+  O nível escolar do aluno é "${schoolYear || 'Ensino Fundamental/Médio'}".
   A dificuldade deve ser "${difficultyLabel}".
   ${seed ? `Use este identificador de semente para garantir variedade: ${seed}` : ''}
-  As perguntas devem ser em Português do Brasil.
+  As perguntas devem ser em Português do Brasil e adequadas pedagogicamente para o ano escolar mencionado.
   Para cada pergunta, forneça:
   1. O enunciado da pergunta (q).
   2. 4 opções de resposta (opts).
@@ -56,13 +57,13 @@ export async function generateQuestions(subject: string, topic: string, difficul
   }
 }
 
-export async function generateDailyPack(subject: string, date: string): Promise<Question[]> {
+export async function generateDailyPack(subject: string, date: string, schoolYear?: string): Promise<Question[]> {
   // We generate in batches because 100 at once might hit token limits or timeout
   const batches = [1, 2, 3, 4]; // 4 batches of 25 = 100 questions
   const allQuestions: Question[] = [];
 
   for (const batch of batches) {
-    const qs = await generateQuestions(subject, "Tópicos variados do currículo escolar", 2, 25, `${date}-batch-${batch}`);
+    const qs = await generateQuestions(subject, "Tópicos variados do currículo escolar", 2, 25, `${date}-batch-${batch}`, schoolYear);
     allQuestions.push(...qs);
   }
 
