@@ -609,6 +609,7 @@ function EduApp() {
               className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold"
             />
           </div>
+          {state.profileName.length < 3 && <span className="text-[10px] text-danger ml-1">Mínimo 3 caracteres</span>}
         </div>
 
         <div className="flex flex-col gap-2 text-left">
@@ -624,6 +625,7 @@ function EduApp() {
               </button>
             ))}
           </div>
+          {!state.currentYear && <span className="text-[10px] text-danger ml-1">Selecione seu ano escolar</span>}
         </div>
 
         <div className="flex flex-col gap-2 text-left">
@@ -645,19 +647,28 @@ function EduApp() {
       <button 
         disabled={!state.currentYear || state.profileName.length < 3}
         onClick={async () => { 
-          if (!isLocalMode) {
-            await syncToFirestore(state);
-          } else {
-            localStorage.setItem('edu_local_data', JSON.stringify({
-              ...state,
-              lastActive: new Date().toISOString()
-            }));
+          try {
+            if (!isLocalMode && auth.currentUser) {
+              await syncToFirestore(state);
+            } else {
+              localStorage.setItem('edu_local_data', JSON.stringify({
+                ...state,
+                lastActive: new Date().toISOString()
+              }));
+            }
+          } catch (e) {
+            console.error("Erro ao sincronizar dados iniciais:", e);
           }
           setScreen('home'); 
         }}
-        className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale"
+        className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale relative group"
       >
         Começar a Estudar →
+        {(!state.currentYear || state.profileName.length < 3) && (
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-danger text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
+            Preencha seu nome e escolha o ano escolar
+          </div>
+        )}
       </button>
     </div>
   );
@@ -667,9 +678,30 @@ function EduApp() {
       <div className="overflow-y-auto flex-1">
         <div className="p-6 bg-gradient-to-br from-bg2 to-bg3">
           <div className="flex items-center justify-between">
-            <div className="text-xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduAdaptive</div>
-            <div className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3.5 py-1.5 text-xs font-bold text-warning">
-              <Zap size={14} /> {state.xp.toLocaleString()} XP
+            <div className="flex items-center gap-2">
+              <div className="text-xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduAdaptive</div>
+              {isLocalMode && (
+                <span className="text-[8px] bg-warning/20 text-warning px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Offline</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  // Clear daily cache to allow "update" when online
+                  const today = new Date().toISOString().split('T')[0];
+                  Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('daily_')) localStorage.removeItem(key);
+                  });
+                  alert("Banco de questões atualizado! Novas perguntas serão geradas ao iniciar um desafio.");
+                }}
+                className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center text-muted hover:text-primary transition-colors"
+                title="Sincronizar Questões"
+              >
+                <Zap size={14} />
+              </button>
+              <div className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3.5 py-1.5 text-xs font-bold text-warning">
+                <Zap size={14} /> {state.xp.toLocaleString()} XP
+              </div>
             </div>
           </div>
           <div className="text-2xl font-extrabold mt-5">Olá, {state.profileName}! {state.profileAvatar}</div>
