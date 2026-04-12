@@ -389,7 +389,8 @@ function EduApp() {
       return;
     }
 
-    let currentQ = exQuestions[state.exIndex % exQuestions.length];
+    const safeIndex = Math.max(0, state.exIndex % exQuestions.length);
+    let currentQ = exQuestions[safeIndex];
     if (!currentQ) {
       setScreen('home');
       return;
@@ -430,28 +431,34 @@ function EduApp() {
   const checkAdaptiveAlgo = (recent: boolean[]) => {
     if (recent.length >= 3 && recent[0] && recent[1] && recent[2]) {
       if (state.difficulty < 3) {
-        setState(prev => ({ ...prev, difficulty: prev.difficulty + 1 }));
+        const nextDiff = state.difficulty + 1;
+        setState(prev => ({ ...prev, difficulty: nextDiff }));
         setAlgoMsg({ 
-          text: `🚀 3 acertos seguidos! Dificuldade aumentada para ${['', 'Fácil', 'Médio', 'Difícil'][state.difficulty + 1]}!`, 
+          text: `🚀 3 acertos seguidos! Dificuldade aumentada para ${['', 'Fácil', 'Médio', 'Difícil'][nextDiff]}!`, 
           type: 'up' 
         });
         // Refresh questions for new difficulty
         const subjectQs = QUESTIONS_BY_SUBJECT[state.currentSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
-        const newQs = [...(subjectQs[state.difficulty + 1] || subjectQs[2])];
-        setExQuestions(shuffleArr(newQs));
-        setState(prev => ({ ...prev, exIndex: -1 })); // Will be incremented in nextQuestion
+        const newQs = [...(subjectQs[nextDiff] || subjectQs[2])];
+        if (newQs.length > 0) {
+          setExQuestions(shuffleArr(newQs));
+          setState(prev => ({ ...prev, exIndex: 0 })); 
+        }
       }
     } else if (recent.length >= 2 && !recent[0] && !recent[1]) {
       if (state.difficulty > 1) {
-        setState(prev => ({ ...prev, difficulty: prev.difficulty - 1 }));
+        const nextDiff = state.difficulty - 1;
+        setState(prev => ({ ...prev, difficulty: nextDiff }));
         setAlgoMsg({ 
-          text: `📚 Vamos reforçar a base! Dificuldade ajustada para ${['', 'Fácil', 'Médio', 'Difícil'][state.difficulty - 1]}.`, 
+          text: `📚 Vamos reforçar a base! Dificuldade ajustada para ${['', 'Fácil', 'Médio', 'Difícil'][nextDiff]}.`, 
           type: 'down' 
         });
         const subjectQs = QUESTIONS_BY_SUBJECT[state.currentSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
-        const newQs = [...(subjectQs[state.difficulty - 1] || subjectQs[1])];
-        setExQuestions(shuffleArr(newQs));
-        setState(prev => ({ ...prev, exIndex: -1 }));
+        const newQs = [...(subjectQs[nextDiff] || subjectQs[1])];
+        if (newQs.length > 0) {
+          setExQuestions(shuffleArr(newQs));
+          setState(prev => ({ ...prev, exIndex: 0 }));
+        }
       } else {
         setAlgoMsg({ text: "💡 Vamos reforçar este tema antes de avançar!", type: 'reinforce' });
       }
@@ -545,12 +552,13 @@ function EduApp() {
     try {
       for (const subject of subjects) {
         for (let diff = 1; diff <= 3; diff++) {
+          // Generating 70 questions per difficulty to reach ~210 per subject
           const qs = await generateQuestions(
             subject, 
-            `Tópicos fundamentais para ${state.currentYear}`, 
+            `Tópicos fundamentais e avançados do currículo para ${state.currentYear}. Garanta variedade total de temas.`, 
             diff, 
-            50, // Generate 50 per difficulty to reach 150-200 per subject
-            `offline-bank-${subject}-${diff}-${state.currentYear}`, 
+            70, 
+            `offline-bank-v2-${subject}-${diff}-${state.currentYear}-${Date.now()}`, 
             state.currentYear
           );
           
@@ -711,6 +719,22 @@ function EduApp() {
         </div>
 
         <div className="flex flex-col gap-2 text-left">
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Série / Ano Escolar</label>
+          <div className="grid grid-cols-3 gap-2">
+            {['6º Ano', '7º Ano', '8º Ano', '9º Ano', '1º EM', '2º EM'].map(year => (
+              <button 
+                key={year}
+                onClick={() => setState(prev => ({ ...prev, currentYear: year }))}
+                className={`bg-card border rounded-lg py-2.5 text-[10px] font-bold transition-all ${state.currentYear === year ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'border-border text-muted hover:border-primary/50'}`}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+          {!state.currentYear && <span className="text-[10px] text-danger ml-1">Selecione sua série</span>}
+        </div>
+
+        <div className="flex flex-col gap-2 text-left">
           <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Curso Desejado</label>
           <div className="grid grid-cols-2 gap-2">
             {['Matemática', 'Português', 'Ciências', 'História', 'Geral'].map(course => (
@@ -745,14 +769,14 @@ function EduApp() {
       {loginError && <div className="text-[10px] text-danger font-bold mt-4">{loginError}</div>}
 
       <button 
-        disabled={!state.currentCourse || state.profileName.length < 3}
+        disabled={!state.currentCourse || !state.currentYear || state.profileName.length < 3}
         onClick={async () => { 
           await handleCreateUser();
         }}
         className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale relative group"
       >
         Começar a Estudar →
-        {(!state.currentCourse || state.profileName.length < 3) && (
+        {(!state.currentCourse || !state.currentYear || state.profileName.length < 3) && (
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-danger text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
             Preencha todos os campos corretamente
           </div>
@@ -814,7 +838,9 @@ function EduApp() {
           )}
 
           <div className="text-2xl font-extrabold mt-5">Olá, {state.profileName}! {state.profileAvatar}</div>
-          <div className="text-muted text-sm">Você está no Nível {state.level} · Continue sua sequência!</div>
+          <div className="text-muted text-sm">
+            {state.currentYear} · Você está no Nível {state.level} · Continue sua sequência!
+          </div>
           <div className="flex items-center gap-4 mt-4">
             <div className="flex items-center gap-1.5 bg-card2 rounded-xl px-3.5 py-2 text-xs font-semibold">
               <Flame size={14} className="text-orange-500" /> {state.streak} dias
@@ -902,7 +928,7 @@ function EduApp() {
   );
 
   const renderExercicio = () => {
-    if (exQuestions.length === 0) {
+    if (!exQuestions || exQuestions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-bg p-10 text-center">
           <div className="text-6xl mb-6">🔍</div>
@@ -917,7 +943,8 @@ function EduApp() {
       );
     }
 
-    const q = exQuestions[state.exIndex % exQuestions.length];
+    const safeIndex = Math.max(0, state.exIndex % exQuestions.length);
+    const q = exQuestions[safeIndex];
     
     if (isLoadingQuestions) {
       return (

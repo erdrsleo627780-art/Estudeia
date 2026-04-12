@@ -13,12 +13,12 @@ export async function generateQuestions(subject: string, topic: string, difficul
   }
   const difficultyLabel = ['', 'Fácil', 'Médio', 'Difícil'][difficulty];
   
-  const prompt = `Gere uma lista massiva de ${count} perguntas de múltipla escolha únicas e diversificadas para a matéria "${subject}" sobre o tema "${topic}". 
+  const prompt = `Gere uma lista massiva de ${count} perguntas de múltipla escolha ABSOLUTAMENTE ÚNICAS e diversificadas para a matéria "${subject}" sobre o tema "${topic}". 
   O nível escolar do aluno é "${schoolYear || 'Ensino Fundamental/Médio'}".
   A dificuldade deve ser "${difficultyLabel}".
-  ${seed ? `Use este identificador de semente para garantir variedade absoluta: ${seed}` : ''}
+  ${seed ? `Use este identificador de semente para garantir variedade absoluta e evitar qualquer repetição: ${seed}` : ''}
   As perguntas devem ser em Português do Brasil e adequadas pedagogicamente para o ano escolar mencionado.
-  Garanta que não haja repetições e que cubra todos os sub-tópicos possíveis.
+  CRÍTICO: Garanta que NÃO haja repetições de enunciados ou conceitos. Cubra o máximo de sub-tópicos diferentes dentro da matéria.
   Para cada pergunta, forneça:
   1. O enunciado da pergunta (q).
   2. 4 opções de resposta (opts).
@@ -66,12 +66,12 @@ export async function generateQuestions(subject: string, topic: string, difficul
 }
 
 export async function generateDailyPack(subject: string, date: string, schoolYear?: string): Promise<Question[]> {
-  // We generate in batches to handle the massive request
-  const batches = [1, 2, 3, 4]; // 4 batches of 250 = 1000 questions
+  // Increased to 5 batches of 200 = 1000 questions total for the daily challenge
+  const batches = [1, 2, 3, 4, 5]; 
   const allQuestions: Question[] = [];
 
   for (const batch of batches) {
-    const qs = await generateQuestions(subject, "Tópicos variados do currículo escolar", 2, 250, `${date}-batch-${batch}`, schoolYear);
+    const qs = await generateQuestions(subject, "Tópicos variados e abrangentes do currículo escolar", 2, 200, `${date}-v2-batch-${batch}`, schoolYear);
     allQuestions.push(...qs);
   }
 
