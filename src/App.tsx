@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Screen, AppState, Question, UserData } from './types';
 import { QUESTIONS_BY_SUBJECT, NIVEL_QUESTIONS, AVATARS } from './constants';
-import { generateQuestions } from './services/geminiService';
+import { generateQuestions, isAIAvailable } from './services/geminiService';
 import { auth, db, isFirebaseEnabled } from './firebase';
 import { 
   onAuthStateChanged,
@@ -168,11 +168,10 @@ export default function App() {
 }
 
 function EduApp() {
-  const [screen, setScreen] = useState<Screen | 'login'>('login');
+  const [screen, setScreen] = useState<Screen>('onboarding');
   const [user, setUser] = useState<any>(null);
   const [globalRanking, setGlobalRanking] = useState<UserData[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [userPassword, setUserPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   
   const initialAppState: AppState = {
@@ -191,6 +190,7 @@ function EduApp() {
     currentSubject: '',
     currentTopic: '',
     currentYear: '',
+    currentCourse: '',
     profileName: '',
     profileAvatar: '🦁',
     dailyUsage: {},
@@ -245,7 +245,14 @@ function EduApp() {
         }
       } else {
         setUser(null);
-        setScreen('login');
+        // Auto-sign in anonymously to skip login screen
+        try {
+          await signInAnonymously(auth);
+        } catch (e) {
+          console.error("Erro ao entrar anonimamente:", e);
+          setIsLocalMode(true);
+          setScreen('onboarding');
+        }
       }
       setIsAuthLoading(false);
     });
@@ -253,34 +260,30 @@ function EduApp() {
   }, []);
 
   const handleCreateUser = async () => {
-    if (state.profileName.length < 3 || userPassword.length !== 6) return;
+    if (state.profileName.length < 3 || !state.currentCourse) return;
     
     setLoginError(null);
-    const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
     
     try {
-      await createUserWithEmailAndPassword(auth, email, userPassword);
-    } catch (error: any) {
-      console.error("Erro ao criar usuário:", error);
-      if (error.code === 'auth/email-already-in-use') {
-        setLoginError('Este usuário já existe. Tente fazer login.');
-      } else {
-        setLoginError('Erro ao criar usuário: ' + error.message);
+      if (user) {
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          username: state.profileName,
+          xp: 0,
+          level: 1,
+          streak: 0,
+          correct: 0,
+          difficulty: 1,
+          profileAvatar: state.profileAvatar,
+          currentYear: state.currentCourse,
+          lastActive: new Date().toISOString(),
+          subjectLevels: state.subjectLevels
+        });
+        setScreen('home');
       }
-    }
-  };
-
-  const handleLogin = async () => {
-    if (state.profileName.length < 3 || userPassword.length !== 6) return;
-    
-    setLoginError(null);
-    const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
-    
-    try {
-      await signInWithEmailAndPassword(auth, email, userPassword);
     } catch (error: any) {
-      console.error("Erro ao fazer login:", error);
-      setLoginError('Usuário ou senha incorretos.');
+      console.error("Erro ao salvar perfil:", error);
+      setLoginError('Erro ao salvar perfil: ' + error.message);
     }
   };
 
@@ -512,6 +515,51 @@ function EduApp() {
   };
 
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [isGeneratingOffline, setIsGeneratingOffline] = useState(false);
+
+  const generateOfflineBank = async () => {
+    if (!isAIAvailable) {
+      alert("IA não configurada. Verifique sua conexão e chave de API.");
+      return;
+    }
+    
+    setIsGeneratingOffline(true);
+    setLoadingProgress(0);
+    
+    const subjects = ["Matemática", "Português", "Ciências", "História"];
+    const totalSteps = subjects.length * 3; // 4 subjects * 3 difficulties
+    let currentStep = 0;
+
+    try {
+      for (const subject of subjects) {
+        for (let diff = 1; diff <= 3; diff++) {
+          const qs = await generateQuestions(
+            subject, 
+            `Tópicos fundamentais para ${state.currentYear}`, 
+            diff, 
+            50, // Generate 50 per difficulty to reach 150-200 per subject
+            `offline-bank-${subject}-${diff}-${state.currentYear}`, 
+            state.currentYear
+          );
+          
+          if (qs.length > 0) {
+            const key = `offline_bank_${subject}_${diff}`;
+            localStorage.setItem(key, JSON.stringify(qs));
+          }
+          
+          currentStep++;
+          setLoadingProgress(Math.round((currentStep / totalSteps) * 100));
+        }
+      }
+      alert("Banco de 200 questões por matéria gerado e salvo offline com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar banco offline:", error);
+      alert("Erro ao gerar banco offline. Verifique sua conexão.");
+    } finally {
+      setIsGeneratingOffline(false);
+      setLoadingProgress(0);
+    }
+  };
 
   const startExercicio = async (subject: string, topic: string, diff: number, isDaily: boolean = false, levelNum?: number, forceAI: boolean = false) => {
     const today = new Date().toISOString().split('T')[0];
@@ -535,14 +583,24 @@ function EduApp() {
 
       // 1. Try to find local questions first (Strictly Offline First)
       if (!forceAI) {
-        const subjectQs = QUESTIONS_BY_SUBJECT[targetSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
-        const localPool = subjectQs[levelDiff] || subjectQs[2] || [];
+        const levelDiff = levelNum ? (levelNum <= 30 ? 1 : levelNum <= 70 ? 2 : 3) : diff;
+        const offlineKey = `offline_bank_${targetSubject}_${levelDiff}`;
+        const offlineData = localStorage.getItem(offlineKey);
         
-        if (localPool.length > 0) {
-          // If it's a level, we want 10. If we have fewer, we take what we have.
+        if (offlineData) {
+          const offlinePool = JSON.parse(offlineData);
           const countNeeded = levelNum ? 10 : 5;
-          qs = shuffleArr([...localPool]).slice(0, countNeeded);
-          console.log(`Usando ${qs.length} questões offline para ${targetSubject}`);
+          qs = shuffleArr([...offlinePool]).slice(0, countNeeded);
+          console.log(`Usando ${qs.length} questões do banco offline para ${targetSubject}`);
+        } else {
+          // Fallback to constants if no offline bank generated yet
+          const subjectQs = QUESTIONS_BY_SUBJECT[targetSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
+          const localPool = subjectQs[levelDiff] || subjectQs[2] || [];
+          if (localPool.length > 0) {
+            const countNeeded = levelNum ? 10 : 5;
+            qs = shuffleArr([...localPool]).slice(0, countNeeded);
+            console.log(`Usando ${qs.length} questões das constantes para ${targetSubject}`);
+          }
         }
       }
 
@@ -606,93 +664,27 @@ function EduApp() {
     return newArr;
   };
 
-  const renderLogin = () => (
-    <div className="flex flex-col items-center justify-center text-center p-10 min-h-screen bg-gradient-to-br from-bg2 to-bg3 animate-fade-in">
-      <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(212,185,150,0.4)]">🎓</div>
-      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">EduAdaptive</h1>
-      <p className="text-muted text-sm mb-8 leading-relaxed">
-        Acesse sua jornada de conhecimento.<br/>
-        <span className="font-bold text-primary">Lembre-se do seu usuário para acessar novamente!</span>
-      </p>
-      
-      <div className="w-full max-w-xs flex flex-col gap-6">
-        <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Usuário</label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 text-muted" size={18} />
-            <input 
-              type="text" 
-              placeholder="@usuario" 
-              value={state.profileName}
-              onChange={(e) => {
-                const val = e.target.value;
-                setState(prev => ({ ...prev, profileName: val.startsWith('@') ? val : `@${val}` }));
-              }}
-              className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha (6 dígitos)</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 text-muted" size={18} />
-            <input 
-              type="password" 
-              maxLength={6}
-              placeholder="******" 
-              value={userPassword}
-              onChange={(e) => setUserPassword(e.target.value.replace(/\D/g, ''))}
-              className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold tracking-widest"
-            />
-          </div>
-        </div>
-
-        {loginError && <div className="text-[10px] text-danger font-bold">{loginError}</div>}
-
-        <div className="flex flex-col gap-3 mt-4">
-          <button 
-            onClick={handleLogin}
-            disabled={state.profileName.length < 3 || userPassword.length !== 6}
-            className="btn-primary w-full max-w-none disabled:opacity-50"
-          >
-            Entrar
-          </button>
-          <button 
-            onClick={() => {
-              setState(initialAppState);
-              setScreen('onboarding');
-            }}
-            className="text-xs font-bold text-muted hover:text-primary transition-colors"
-          >
-            Criar Nova Conta
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderOnboarding = () => (
     <div className="flex flex-col items-center justify-center text-center p-10 min-h-screen bg-gradient-to-br from-bg2 to-bg3 animate-fade-in">
       <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(212,185,150,0.4)]">🎓</div>
-      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">Novo Perfil</h1>
+      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">Bem-vindo!</h1>
       <p className="text-muted text-sm mb-8 leading-relaxed">
-        Defina seus dados e uma senha de 6 dígitos.<br/>
-        <span className="font-bold text-primary">Lembre-se do seu usuário para acessar novamente!</span>
+        Crie seu perfil para começar sua jornada.<br/>
+        <span className="font-bold text-primary">Seu progresso será salvo automaticamente!</span>
       </p>
       
       <div className="w-full max-w-xs flex flex-col gap-6">
         <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Seu Nome / @Usuário</label>
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Seu Nome</label>
           <div className="relative">
             <User className="absolute left-3 top-3 text-muted" size={18} />
             <input 
               type="text" 
-              placeholder="@usuario" 
+              placeholder="Como quer ser chamado?" 
               value={state.profileName}
               onChange={(e) => {
                 const val = e.target.value;
-                setState(prev => ({ ...prev, profileName: val.startsWith('@') ? val : `@${val}` }));
+                setState(prev => ({ ...prev, profileName: val }));
               }}
               className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold"
             />
@@ -701,35 +693,19 @@ function EduApp() {
         </div>
 
         <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha de Acesso (6 dígitos)</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 text-muted" size={18} />
-            <input 
-              type="password" 
-              maxLength={6}
-              placeholder="******" 
-              value={userPassword}
-              onChange={(e) => setUserPassword(e.target.value.replace(/\D/g, ''))}
-              className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold tracking-widest"
-            />
-          </div>
-          {userPassword.length !== 6 && <span className="text-[10px] text-danger ml-1">A senha deve ter 6 números</span>}
-        </div>
-
-        <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Ano Escolar</label>
-          <div className="grid grid-cols-3 gap-2">
-            {['6º Ano', '7º Ano', '8º Ano', '9º Ano', '1º EM', '2º EM'].map(year => (
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Curso Desejado</label>
+          <div className="grid grid-cols-2 gap-2">
+            {['Matemática', 'Português', 'Ciências', 'História', 'Geral'].map(course => (
               <button 
-                key={year}
-                onClick={() => setState(prev => ({ ...prev, currentYear: year }))}
-                className={`bg-card border rounded-lg py-2.5 text-[10px] font-bold transition-all ${state.currentYear === year ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'border-border text-muted hover:border-primary/50'}`}
+                key={course}
+                onClick={() => setState(prev => ({ ...prev, currentCourse: course }))}
+                className={`bg-card border rounded-lg py-2.5 text-[10px] font-bold transition-all ${state.currentCourse === course ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'border-border text-muted hover:border-primary/50'}`}
               >
-                {year}
+                {course}
               </button>
             ))}
           </div>
-          {!state.currentYear && <span className="text-[10px] text-danger ml-1">Selecione seu ano escolar</span>}
+          {!state.currentCourse && <span className="text-[10px] text-danger ml-1">Selecione um curso</span>}
         </div>
 
         <div className="flex flex-col gap-2 text-left">
@@ -751,26 +727,18 @@ function EduApp() {
       {loginError && <div className="text-[10px] text-danger font-bold mt-4">{loginError}</div>}
 
       <button 
-        disabled={!state.currentYear || state.profileName.length < 3 || userPassword.length !== 6}
+        disabled={!state.currentCourse || state.profileName.length < 3}
         onClick={async () => { 
           await handleCreateUser();
-          // The auth listener will handle navigation to home if successful
         }}
         className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale relative group"
       >
         Começar a Estudar →
-        {(!state.currentYear || state.profileName.length < 3 || userPassword.length !== 6) && (
+        {(!state.currentCourse || state.profileName.length < 3) && (
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-danger text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
             Preencha todos os campos corretamente
           </div>
         )}
-      </button>
-
-      <button 
-        onClick={() => setScreen('login')}
-        className="mt-4 text-xs font-bold text-muted hover:text-primary transition-colors"
-      >
-        Já tenho uma conta
       </button>
     </div>
   );
@@ -787,6 +755,14 @@ function EduApp() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <button 
+                onClick={generateOfflineBank}
+                disabled={isGeneratingOffline}
+                className={`w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center text-muted hover:text-primary transition-colors ${isGeneratingOffline ? 'animate-spin text-primary' : ''}`}
+                title="Gerar Banco Offline (IA)"
+              >
+                <WifiOff size={14} />
+              </button>
               <button 
                 onClick={() => {
                   // Clear daily cache to allow "update" when online
@@ -806,6 +782,19 @@ function EduApp() {
               </div>
             </div>
           </div>
+          
+          {isGeneratingOffline && (
+            <div className="mt-4 bg-card border border-primary/30 rounded-xl p-3 animate-pulse">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] font-bold text-primary uppercase tracking-widest">IA Gerando Banco Offline...</div>
+                <div className="text-[10px] font-bold text-primary">{loadingProgress}%</div>
+              </div>
+              <div className="w-full bg-card2 h-1.5 rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${loadingProgress}%` }}></div>
+              </div>
+            </div>
+          )}
+
           <div className="text-2xl font-extrabold mt-5">Olá, {state.profileName}! {state.profileAvatar}</div>
           <div className="text-muted text-sm">Você está no Nível {state.level} · Continue sua sequência!</div>
           <div className="flex items-center gap-4 mt-4">
@@ -832,7 +821,18 @@ function EduApp() {
           <div className="bg-white/20 rounded-xl px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap">5× XP</div>
         </div>
 
-        <div className="px-6 text-sm font-bold text-muted tracking-widest uppercase mt-6 mb-3">Matérias</div>
+        <div className="px-6 text-sm font-bold text-muted tracking-widest uppercase mt-6 mb-3 flex items-center justify-between">
+          <span>Matérias</span>
+          <button 
+            onClick={() => {
+              const subject = state.currentSubject || "Matemática";
+              startExercicio(subject, "Reforço IA", 2, false, undefined, true);
+            }}
+            className="text-[9px] bg-primary/10 text-primary px-2 py-1 rounded-md hover:bg-primary/20 transition-colors flex items-center gap-1"
+          >
+            <Zap size={10} /> Gerar Novas (IA)
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3 px-6">
           <SubjectCard 
             title="Matemática" icon={<Calculator size={28} className="text-primary" />} 
@@ -1352,7 +1352,6 @@ function EduApp() {
           </div>
         ) : (
           <>
-            {screen === 'login' && renderLogin()}
             {screen === 'onboarding' && renderOnboarding()}
             {screen === 'home' && renderHome()}
             {screen === 'levels' && renderLevels()}

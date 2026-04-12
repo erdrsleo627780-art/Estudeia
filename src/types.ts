@@ -46,6 +46,7 @@ export interface AppState {
   currentSubject: string;
   currentTopic: string;
   currentYear: string;
+  currentCourse: string;
   profileName: string;
   profileAvatar: string;
   dailyUsage: { [subject: string]: { count: number; lastDate: string } };

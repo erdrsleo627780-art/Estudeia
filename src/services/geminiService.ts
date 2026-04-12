@@ -4,18 +4,21 @@ import { Question } from "../types";
 const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
 const ai = apiKey && apiKey !== "undefined" ? new GoogleGenAI({ apiKey }) : null;
 
-export async function generateQuestions(subject: string, topic: string, difficulty: number, count: number = 5, seed?: string, schoolYear?: string): Promise<Question[]> {
+export const isAIAvailable = !!ai;
+
+export async function generateQuestions(subject: string, topic: string, difficulty: number, count: number = 1000, seed?: string, schoolYear?: string): Promise<Question[]> {
   if (!ai) {
     console.warn("Gemini API key is missing. AI generation will not work.");
     return [];
   }
   const difficultyLabel = ['', 'Fácil', 'Médio', 'Difícil'][difficulty];
   
-  const prompt = `Gere ${count} perguntas de múltipla escolha para a matéria "${subject}" sobre o tema "${topic}". 
+  const prompt = `Gere uma lista massiva de ${count} perguntas de múltipla escolha únicas e diversificadas para a matéria "${subject}" sobre o tema "${topic}". 
   O nível escolar do aluno é "${schoolYear || 'Ensino Fundamental/Médio'}".
   A dificuldade deve ser "${difficultyLabel}".
-  ${seed ? `Use este identificador de semente para garantir variedade: ${seed}` : ''}
+  ${seed ? `Use este identificador de semente para garantir variedade absoluta: ${seed}` : ''}
   As perguntas devem ser em Português do Brasil e adequadas pedagogicamente para o ano escolar mencionado.
+  Garanta que não haja repetições e que cubra todos os sub-tópicos possíveis.
   Para cada pergunta, forneça:
   1. O enunciado da pergunta (q).
   2. 4 opções de resposta (opts).
@@ -63,12 +66,12 @@ export async function generateQuestions(subject: string, topic: string, difficul
 }
 
 export async function generateDailyPack(subject: string, date: string, schoolYear?: string): Promise<Question[]> {
-  // We generate in batches because 100 at once might hit token limits or timeout
-  const batches = [1, 2, 3, 4]; // 4 batches of 25 = 100 questions
+  // We generate in batches to handle the massive request
+  const batches = [1, 2, 3, 4]; // 4 batches of 250 = 1000 questions
   const allQuestions: Question[] = [];
 
   for (const batch of batches) {
-    const qs = await generateQuestions(subject, "Tópicos variados do currículo escolar", 2, 25, `${date}-batch-${batch}`, schoolYear);
+    const qs = await generateQuestions(subject, "Tópicos variados do currículo escolar", 2, 250, `${date}-batch-${batch}`, schoolYear);
     allQuestions.push(...qs);
   }
 
