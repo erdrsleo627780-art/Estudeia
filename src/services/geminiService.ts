@@ -1,9 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+const ai = apiKey && apiKey !== "undefined" ? new GoogleGenAI({ apiKey }) : null;
 
 export async function generateQuestions(subject: string, topic: string, difficulty: number, count: number = 5, seed?: string, schoolYear?: string): Promise<Question[]> {
+  if (!ai) {
+    console.warn("Gemini API key is missing. AI generation will not work.");
+    return [];
+  }
   const difficultyLabel = ['', 'Fácil', 'Médio', 'Difícil'][difficulty];
   
   const prompt = `Gere ${count} perguntas de múltipla escolha para a matéria "${subject}" sobre o tema "${topic}". 

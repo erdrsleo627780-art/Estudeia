@@ -25,7 +25,7 @@ import {
 import { Screen, AppState, Question, UserData } from './types';
 import { QUESTIONS_BY_SUBJECT, NIVEL_QUESTIONS, AVATARS } from './constants';
 import { generateQuestions } from './services/geminiService';
-import { auth, db } from './firebase';
+import { auth, db, isFirebaseEnabled } from './firebase';
 import { 
   onAuthStateChanged,
   signInAnonymously,
@@ -210,6 +210,11 @@ function EduApp() {
   
   // Auth Listener
   useEffect(() => {
+    if (!isFirebaseEnabled) {
+      setAuthError("Configuração do Firebase ausente. Por favor, configure as variáveis de ambiente no Vercel.");
+      setIsAuthLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -1315,7 +1320,33 @@ function EduApp() {
   return (
     <ErrorBoundary>
       <div className="max-w-md mx-auto bg-bg min-h-screen shadow-2xl relative overflow-hidden">
-        {isAuthLoading ? (
+        {authError ? (
+          <div className="flex flex-col items-center justify-center min-h-screen p-10 text-center">
+            <div className="text-6xl mb-6">🔓</div>
+            <h1 className="text-xl font-black mb-4 text-danger">Acesso Restrito</h1>
+            <p className="text-muted text-sm mb-8 leading-relaxed">
+              {authError}
+              <br /><br />
+              Para resolver isso no Vercel, adicione as variáveis de ambiente (VITE_FIREBASE_API_KEY, etc.) nas configurações do seu projeto.
+            </p>
+            
+            <div className="flex flex-col gap-3 w-full">
+              <button 
+                onClick={startLocalMode}
+                className="btn-primary w-full bg-gradient-to-r from-primary to-secondary"
+              >
+                Continuar no Modo Offline
+              </button>
+              
+              <button 
+                onClick={() => window.location.reload()}
+                className="text-xs font-bold text-muted hover:text-primary transition-colors"
+              >
+                Tentar reconectar
+              </button>
+            </div>
+          </div>
+        ) : isAuthLoading ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
