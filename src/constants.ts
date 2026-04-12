@@ -27,6 +27,8 @@ export const QUESTIONS_BY_SUBJECT: QuestionDatabase = {
       { q: "Se log₂(x) = 5, quanto vale x?", opts: ["10", "25", "32", "64"], ans: 2, explanation: ["log₂(x)=5 → 2⁵=x.", "2⁵ = 32.", "Resultado: 32."], mistake: "Calcular 2×5=10." },
       { q: "Quantas diagonais tem um hexágono?", opts: ["6", "9", "12", "15"], ans: 1, explanation: ["Diagonais = n(n-3)/2.", "6×3/2 = 9.", "Resultado: 9 diagonais."], mistake: "Confundir o número de lados com o de diagonais." },
       { q: "Qual é o valor de sen(30°)?", opts: ["√3/2", "1/2", "√2/2", "1"], ans: 1, explanation: ["Triângulo 30-60-90: lados 1, √3, 2.", "sen(30°) = oposto/hipotenusa = 1/2.", "Resultado: 1/2."], mistake: "Confundir sen(30°) with cos(30°)=√3/2." },
+      { q: "Qual a derivada de f(x) = x²?", opts: ["x", "2x", "2", "x/2"], ans: 1, explanation: ["Regra do tombo: d/dx(xⁿ) = nxⁿ⁻¹.", "d/dx(x²) = 2x²⁻¹ = 2x.", "Resultado: 2x."], mistake: "Pensar que a derivada de x² é x." },
+      { q: "Qual o valor de π (aproximado)?", opts: ["3,12", "3,14", "3,16", "3,18"], ans: 1, explanation: ["π é a razão entre o perímetro e o diâmetro.", "Valor aproximado: 3,14159...", "Usamos 3,14."], mistake: "Confundir com 3,12." },
     ]
   },
   "Português": {

@@ -319,6 +319,7 @@ function EduApp() {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [algoMsg, setAlgoMsg] = useState<{ text: string, type: 'up' | 'down' | 'reinforce' } | null>(null);
   const [exQuestions, setExQuestions] = useState<Question[]>([]);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Timer logic
   useEffect(() => {
@@ -432,21 +433,44 @@ function EduApp() {
 
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
 
-  const startExercicio = async (subject: string, topic: string, diff: number) => {
+  const startExercicio = async (subject: string, topic: string, diff: number, isDaily: boolean = false) => {
     const today = new Date().toISOString().split('T')[0];
     const usage = state.dailyUsage[subject];
-    if (usage && usage.lastDate === today && usage.count >= 50) {
-      alert(`Você já atingiu o limite de 50 perguntas para ${subject} hoje! Tente novamente amanhã.`);
+    if (usage && usage.lastDate === today && usage.count >= 100) {
+      alert(`Você já atingiu o limite de 100 perguntas para ${subject} hoje! Tente novamente amanhã.`);
       return;
     }
 
     setIsLoadingQuestions(true);
-    setScreen('exercicio'); // Switch early to show loading state if needed
+    setLoadingProgress(0);
+    setScreen('exercicio'); 
     
     try {
-      const qs = await generateQuestions(subject, topic, diff, 5);
+      let qs: Question[] = [];
+      
+      if (isDaily) {
+        // Daily Pack Logic: 100 questions
+        // We check if we have them in Firestore/LocalStorage for today
+        const cacheKey = `daily_${subject}_${today}`;
+        const cached = localStorage.getItem(cacheKey);
+        
+        if (cached) {
+          qs = JSON.parse(cached);
+        } else {
+          // Generate 100 questions in 4 batches of 25
+          for (let i = 1; i <= 4; i++) {
+            setLoadingProgress(i * 25);
+            const batch = await generateQuestions(subject, "Tópicos variados do currículo escolar", diff, 25, `${today}-batch-${i}`);
+            qs.push(...batch);
+          }
+          localStorage.setItem(cacheKey, JSON.stringify(qs));
+        }
+      } else {
+        // Standard 5 questions
+        qs = await generateQuestions(subject, topic, diff, 5);
+      }
+
       if (qs.length === 0) {
-        // Fallback to static questions if Gemini fails
         const subjectQs = QUESTIONS_BY_SUBJECT[subject] || QUESTIONS_BY_SUBJECT["Matemática"];
         setExQuestions(shuffleArr([...(subjectQs[diff] || subjectQs[2])]));
       } else {
@@ -456,7 +480,7 @@ function EduApp() {
       setState(prev => ({
         ...prev,
         currentSubject: subject,
-        currentTopic: topic,
+        currentTopic: isDaily ? 'Desafio 100 Questões' : topic,
         difficulty: diff,
         exIndex: 0,
         exCorrect: 0,
@@ -468,6 +492,7 @@ function EduApp() {
       console.error(error);
     } finally {
       setIsLoadingQuestions(false);
+      setLoadingProgress(0);
     }
   };
 
@@ -581,14 +606,14 @@ function EduApp() {
         </div>
 
         <div 
-          onClick={() => startExercicio('Matemática', 'Desafio do Dia', 2)}
+          onClick={() => startExercicio('Matemática', 'Desafio do Dia', 2, true)}
           className="mx-6 my-3 bg-gradient-to-br from-[#1a1a4e] to-[#2d1b69] border border-primary/40 rounded-xl p-5 flex items-center justify-between cursor-pointer hover:translate-y-[-2px] transition-transform"
         >
           <div>
-            <div className="font-extrabold text-base">⚡ Desafio do Dia</div>
-            <div className="text-muted text-xs">Matemática · Frações · 5 questões</div>
+            <div className="font-extrabold text-base">⚡ Desafio de 100 Questões</div>
+            <div className="text-muted text-xs">Matemática · Tópicos Variados · Nível 2</div>
           </div>
-          <div className="bg-gradient-to-br from-warning to-orange-600 rounded-xl px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap">2× XP</div>
+          <div className="bg-gradient-to-br from-warning to-orange-600 rounded-xl px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap">5× XP</div>
         </div>
 
         <div className="px-6 text-sm font-bold text-muted tracking-widest uppercase mt-6 mb-3">Matérias</div>
@@ -643,9 +668,21 @@ function EduApp() {
     
     if (isLoadingQuestions) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-bg animate-fade-in">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-muted text-sm">Gerando questões personalizadas...</p>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-bg animate-fade-in p-10 text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+          <h2 className="text-xl font-black mb-2">Preparando seu Desafio</h2>
+          <p className="text-muted text-sm mb-8">Gerando 100 questões personalizadas via IA...</p>
+          
+          {loadingProgress > 0 && (
+            <div className="w-full max-w-xs bg-card2 h-3 rounded-full overflow-hidden border border-border">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${loadingProgress}%` }}
+                className="h-full bg-gradient-to-r from-primary to-secondary"
+              />
+            </div>
+          )}
+          <p className="text-[10px] text-muted mt-4 uppercase tracking-widest font-bold">Progresso: {loadingProgress}%</p>
         </div>
       );
     }
