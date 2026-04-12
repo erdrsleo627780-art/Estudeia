@@ -647,6 +647,12 @@ function EduApp() {
 
       setExQuestions(qs);
 
+      if (qs.length === 0) {
+        alert("Não foi possível carregar as questões. Verifique sua conexão ou tente novamente mais tarde.");
+        setScreen('home');
+        return;
+      }
+
       setState(prev => ({
         ...prev,
         currentSubject: targetSubject,
@@ -896,6 +902,21 @@ function EduApp() {
   );
 
   const renderExercicio = () => {
+    if (exQuestions.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-bg p-10 text-center">
+          <div className="text-6xl mb-6">🔍</div>
+          <h2 className="text-xl font-black mb-2">Nenhuma questão encontrada</h2>
+          <p className="text-muted text-sm mb-8">
+            Não conseguimos carregar as questões para este tema. Tente gerar novas questões via IA ou verifique sua conexão.
+          </p>
+          <button onClick={() => setScreen('home')} className="btn-primary w-full max-w-xs">
+            Voltar ao Início
+          </button>
+        </div>
+      );
+    }
+
     const q = exQuestions[state.exIndex % exQuestions.length];
     
     if (isLoadingQuestions) {
@@ -1032,7 +1053,17 @@ function EduApp() {
 
   const renderReview = () => {
     const q = state.lastWrongQ;
-    if (!q) return null;
+    if (!q) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-bg p-10 text-center">
+          <div className="text-6xl mb-6">📝</div>
+          <h2 className="text-xl font-black mb-2">Nenhuma revisão pendente</h2>
+          <button onClick={() => setScreen('home')} className="btn-primary w-full max-w-xs">
+            Voltar ao Início
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col min-h-screen bg-bg animate-fade-in">
         <div className="p-5 px-6 flex items-center gap-3">
@@ -1096,6 +1127,10 @@ function EduApp() {
     const currentSubject = state.currentSubject || 'Matemática';
     const unlockedLevel = state.subjectLevels[currentSubject] || 1;
     
+    if (!state.currentSubject && screen === 'levels') {
+      setScreen('home');
+      return null;
+    }
     return (
       <div className="flex flex-col min-h-screen bg-bg animate-fade-in pb-20">
         <div className="p-5 px-6 flex items-center justify-between bg-card border-b border-border sticky top-0 z-10">
