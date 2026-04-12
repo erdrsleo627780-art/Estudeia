@@ -248,42 +248,31 @@ function EduApp() {
   }, []);
 
   const handleCreateUser = async () => {
-    if (state.profileName.length < 3 || userPassword.length !== 4) return;
+    if (state.profileName.length < 3 || userPassword.length !== 6) return;
     
     setLoginError(null);
     const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
-    const paddedPassword = `edu_${userPassword}`; // Pad to satisfy Firebase 6-char minimum
     
     try {
-      // Check if user already exists
-      try {
-        await signInWithEmailAndPassword(auth, email, paddedPassword);
-        setLoginError('Este usuário já existe. Tente fazer login.');
-        return;
-      } catch (e: any) {
-        if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
-          // Proceed to create
-          await createUserWithEmailAndPassword(auth, email, paddedPassword);
-          // Initial sync will happen in the button click handler or useEffect
-        } else {
-          throw e;
-        }
-      }
+      await createUserWithEmailAndPassword(auth, email, userPassword);
     } catch (error: any) {
       console.error("Erro ao criar usuário:", error);
-      setLoginError('Erro ao criar usuário: ' + error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        setLoginError('Este usuário já existe. Tente fazer login.');
+      } else {
+        setLoginError('Erro ao criar usuário: ' + error.message);
+      }
     }
   };
 
   const handleLogin = async () => {
-    if (state.profileName.length < 3 || userPassword.length !== 4) return;
+    if (state.profileName.length < 3 || userPassword.length !== 6) return;
     
     setLoginError(null);
     const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
-    const paddedPassword = `edu_${userPassword}`;
     
     try {
-      await signInWithEmailAndPassword(auth, email, paddedPassword);
+      await signInWithEmailAndPassword(auth, email, userPassword);
     } catch (error: any) {
       console.error("Erro ao fazer login:", error);
       setLoginError('Usuário ou senha incorretos.');
@@ -640,13 +629,13 @@ function EduApp() {
         </div>
 
         <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha (4 dígitos)</label>
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha (6 dígitos)</label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 text-muted" size={18} />
             <input 
               type="password" 
-              maxLength={4}
-              placeholder="****" 
+              maxLength={6}
+              placeholder="******" 
               value={userPassword}
               onChange={(e) => setUserPassword(e.target.value.replace(/\D/g, ''))}
               className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold tracking-widest"
@@ -659,7 +648,7 @@ function EduApp() {
         <div className="flex flex-col gap-3 mt-4">
           <button 
             onClick={handleLogin}
-            disabled={state.profileName.length < 3 || userPassword.length !== 4}
+            disabled={state.profileName.length < 3 || userPassword.length !== 6}
             className="btn-primary w-full max-w-none disabled:opacity-50"
           >
             Entrar
@@ -683,7 +672,7 @@ function EduApp() {
       <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(212,185,150,0.4)]">🎓</div>
       <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">Novo Perfil</h1>
       <p className="text-muted text-sm mb-8 leading-relaxed">
-        Defina seus dados e uma senha de 4 dígitos.<br/>
+        Defina seus dados e uma senha de 6 dígitos.<br/>
         <span className="font-bold text-primary">Lembre-se do seu usuário para acessar novamente!</span>
       </p>
       
@@ -707,19 +696,19 @@ function EduApp() {
         </div>
 
         <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha de Acesso (4 dígitos)</label>
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha de Acesso (6 dígitos)</label>
           <div className="relative">
             <Lock className="absolute left-3 top-3 text-muted" size={18} />
             <input 
               type="password" 
-              maxLength={4}
-              placeholder="****" 
+              maxLength={6}
+              placeholder="******" 
               value={userPassword}
               onChange={(e) => setUserPassword(e.target.value.replace(/\D/g, ''))}
               className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold tracking-widest"
             />
           </div>
-          {userPassword.length !== 4 && <span className="text-[10px] text-danger ml-1">A senha deve ter 4 números</span>}
+          {userPassword.length !== 6 && <span className="text-[10px] text-danger ml-1">A senha deve ter 6 números</span>}
         </div>
 
         <div className="flex flex-col gap-2 text-left">
@@ -757,7 +746,7 @@ function EduApp() {
       {loginError && <div className="text-[10px] text-danger font-bold mt-4">{loginError}</div>}
 
       <button 
-        disabled={!state.currentYear || state.profileName.length < 3 || userPassword.length !== 4}
+        disabled={!state.currentYear || state.profileName.length < 3 || userPassword.length !== 6}
         onClick={async () => { 
           await handleCreateUser();
           // The auth listener will handle navigation to home if successful
@@ -765,7 +754,7 @@ function EduApp() {
         className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale relative group"
       >
         Começar a Estudar →
-        {(!state.currentYear || state.profileName.length < 3 || userPassword.length !== 4) && (
+        {(!state.currentYear || state.profileName.length < 3 || userPassword.length !== 6) && (
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-danger text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
             Preencha todos os campos corretamente
           </div>
