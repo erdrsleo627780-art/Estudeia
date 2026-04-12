@@ -252,17 +252,18 @@ function EduApp() {
     
     setLoginError(null);
     const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
+    const paddedPassword = `edu_${userPassword}`; // Pad to satisfy Firebase 6-char minimum
     
     try {
       // Check if user already exists
       try {
-        await signInWithEmailAndPassword(auth, email, userPassword);
+        await signInWithEmailAndPassword(auth, email, paddedPassword);
         setLoginError('Este usuário já existe. Tente fazer login.');
         return;
       } catch (e: any) {
         if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
           // Proceed to create
-          await createUserWithEmailAndPassword(auth, email, userPassword);
+          await createUserWithEmailAndPassword(auth, email, paddedPassword);
           // Initial sync will happen in the button click handler or useEffect
         } else {
           throw e;
@@ -279,9 +280,10 @@ function EduApp() {
     
     setLoginError(null);
     const email = `${state.profileName.replace('@', '').toLowerCase()}@edu.com`;
+    const paddedPassword = `edu_${userPassword}`;
     
     try {
-      await signInWithEmailAndPassword(auth, email, userPassword);
+      await signInWithEmailAndPassword(auth, email, paddedPassword);
     } catch (error: any) {
       console.error("Erro ao fazer login:", error);
       setLoginError('Usuário ou senha incorretos.');
