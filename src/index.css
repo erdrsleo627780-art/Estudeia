@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #6366F1; /* Indigo 500 */
-  --color-primary-dark: #4F46E5; /* Indigo 600 */
-  --color-secondary: #F43F5E; /* Rose 500 */
-  --color-success: #10B981; /* Emerald 500 */
-  --color-warning: #F59E0B; /* Amber 500 */
-  --color-danger: #EF4444; /* Red 500 */
-  --color-bg: #020617; /* Slate 950 */
-  --color-bg2: #0F172A; /* Slate 900 */
-  --color-bg3: #1E293B; /* Slate 800 */
-  --color-card: #0F172A; /* Slate 900 */
-  --color-card2: #1E293B; /* Slate 800 */
-  --color-text: #F8FAFC; /* Slate 50 */
-  --color-muted: #94A3B8; /* Slate 400 */
-  --color-border: rgba(99, 102, 241, 0.2);
+  --color-primary: #D4B996; /* Tan */
+  --color-primary-dark: #B89B7A; /* Darker Tan */
+  --color-secondary: #E67E22; /* Terracotta */
+  --color-success: #7FB069; /* Sage Green */
+  --color-warning: #E9C46A; /* Sand Yellow */
+  --color-danger: #E76F51; /* Burnt Sienna */
+  --color-bg: #FDFCF0; /* Cream */
+  --color-bg2: #F5F1E3; /* Light Beige */
+  --color-bg3: #EFE9D5; /* Beige */
+  --color-card: #FFFFFF; /* White */
+  --color-card2: #F9F7F2; /* Very Light Beige */
+  --color-text: #4A3F35; /* Dark Brownish Grey */
+  --color-muted: #8C7E6E; /* Muted Brownish Grey */
+  --color-border: #E5E0D0; /* Soft Border */
 
   --radius-xl: 16px;
   --radius-lg: 10px;
@@ -66,11 +66,11 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-br from-primary to-primary-dark text-white border-none rounded-xl py-4 px-10 text-base font-bold cursor-pointer transition-all duration-250 w-full max-w-[320px] shadow-[0_8px_30px_rgba(108,99,255,0.4)] hover:translate-y-[-2px] hover:shadow-[0_12px_40px_rgba(108,99,255,0.5)];
+    @apply bg-gradient-to-br from-primary to-primary-dark text-white border-none rounded-xl py-4 px-10 text-base font-bold cursor-pointer transition-all duration-250 w-full max-w-[320px] shadow-[0_8px_30px_rgba(184,155,122,0.3)] hover:translate-y-[-2px] hover:shadow-[0_12px_40px_rgba(184,155,122,0.4)];
   }
 
   .option-btn {
-    @apply bg-card border-2 border-border rounded-lg py-4 px-5 cursor-pointer text-sm font-medium text-text text-left transition-all duration-200 flex items-center gap-3 hover:border-primary hover:bg-primary/10 hover:translate-x-1;
+    @apply bg-card border-2 border-border rounded-lg py-4 px-5 cursor-pointer text-sm font-medium text-text text-left transition-all duration-200 flex items-center gap-3 hover:border-primary hover:bg-primary/5 hover:translate-x-1;
   }
 
   .option-btn.correct {

@@ -589,8 +589,8 @@ function EduApp() {
 
   const renderOnboarding = () => (
     <div className="flex flex-col items-center justify-center text-center p-10 min-h-screen bg-gradient-to-br from-bg2 to-bg3 animate-fade-in">
-      <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(108,99,255,0.5)]">🎓</div>
-      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-white to-primary bg-clip-text text-transparent">Bem-vindo!</h1>
+      <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(212,185,150,0.4)]">🎓</div>
+      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">Bem-vindo!</h1>
       <p className="text-muted text-sm mb-8 leading-relaxed">Crie seu perfil para começar.</p>
       
       <div className="w-full max-w-xs flex flex-col gap-6">
@@ -707,13 +707,13 @@ function EduApp() {
           <div className="text-2xl font-extrabold mt-5">Olá, {state.profileName}! {state.profileAvatar}</div>
           <div className="text-muted text-sm">Você está no Nível {state.level} · Continue sua sequência!</div>
           <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center gap-1.5 bg-white/5 rounded-xl px-3.5 py-2 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 bg-card2 rounded-xl px-3.5 py-2 text-xs font-semibold">
               <Flame size={14} className="text-orange-500" /> {state.streak} dias
             </div>
-            <div className="flex items-center gap-1.5 bg-white/5 rounded-xl px-3.5 py-2 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 bg-card2 rounded-xl px-3.5 py-2 text-xs font-semibold">
               <CheckCircle2 size={14} className="text-success" /> {state.correct} acertos
             </div>
-            <div className="flex items-center gap-1.5 bg-white/5 rounded-xl px-3.5 py-2 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 bg-card2 rounded-xl px-3.5 py-2 text-xs font-semibold">
               <Trophy size={14} className="text-warning" /> Liga Ouro
             </div>
           </div>
@@ -721,13 +721,13 @@ function EduApp() {
 
         <div 
           onClick={() => startExercicio('Matemática', 'Desafio do Dia', 2, true)}
-          className="mx-6 my-3 bg-gradient-to-br from-[#1a1a4e] to-[#2d1b69] border border-primary/40 rounded-xl p-5 flex items-center justify-between cursor-pointer hover:translate-y-[-2px] transition-transform"
+          className="mx-6 my-3 bg-gradient-to-br from-primary to-primary-dark border border-primary/20 rounded-xl p-5 flex items-center justify-between cursor-pointer hover:translate-y-[-2px] transition-transform shadow-lg shadow-primary/10"
         >
           <div>
-            <div className="font-extrabold text-base">⚡ Desafio de 100 Questões</div>
-            <div className="text-muted text-xs">Matemática · Tópicos Variados · Nível 2</div>
+            <div className="font-extrabold text-base text-white">⚡ Desafio de 100 Questões</div>
+            <div className="text-white/70 text-xs">Matemática · Tópicos Variados · Nível 2</div>
           </div>
-          <div className="bg-gradient-to-br from-warning to-orange-600 rounded-xl px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap">5× XP</div>
+          <div className="bg-white/20 rounded-xl px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap">5× XP</div>
         </div>
 
         <div className="px-6 text-sm font-bold text-muted tracking-widest uppercase mt-6 mb-3">Matérias</div>
@@ -810,7 +810,7 @@ function EduApp() {
       <div className="flex flex-col min-h-screen bg-bg animate-fade-in">
         <div className="p-6 bg-card border-b border-border">
           <div className="flex items-center gap-3 mb-4">
-            <button className="w-10 h-10 rounded-full bg-bg flex items-center justify-center text-white" onClick={() => setScreen('home')}>
+            <button className="w-10 h-10 rounded-full bg-bg flex items-center justify-center text-text" onClick={() => setScreen('home')}>
               <ChevronLeft size={20} />
             </button>
             <div>
@@ -922,7 +922,7 @@ function EduApp() {
     return (
       <div className="flex flex-col min-h-screen bg-bg animate-fade-in">
         <div className="p-5 px-6 flex items-center gap-3">
-          <button className="w-10 h-10 rounded-full bg-card flex items-center justify-center text-white" onClick={() => setScreen('home')}>
+          <button className="w-10 h-10 rounded-full bg-card flex items-center justify-center text-text" onClick={() => setScreen('home')}>
             <ChevronLeft size={20} />
           </button>
           <div className="text-lg font-extrabold">Revisão de Erro</div>
@@ -986,7 +986,7 @@ function EduApp() {
       <div className="flex flex-col min-h-screen bg-bg animate-fade-in pb-20">
         <div className="p-5 px-6 flex items-center justify-between bg-card border-b border-border sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <button className="w-10 h-10 rounded-full bg-card2 flex items-center justify-center text-white" onClick={() => setScreen('home')}>
+            <button className="w-10 h-10 rounded-full bg-card2 flex items-center justify-center text-text" onClick={() => setScreen('home')}>
               <ChevronLeft size={20} />
             </button>
             <div>
@@ -1126,7 +1126,7 @@ function EduApp() {
 
             <div className="mt-4">
               <div className="text-[10px] text-muted mb-1.5">Progresso para o próximo nível</div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-2 bg-card2 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-primary to-secondary rounded-full" 
                   style={{ width: `${(state.correct % 10) * 10}%` }}
@@ -1294,7 +1294,7 @@ function SubjectCard({ title, icon, mastery, progress, color, onClick, onDaily }
   return (
     <div className="bg-card rounded-xl border border-border cursor-pointer hover:translate-y-[-4px] hover:shadow-[0_12px_30px_rgba(0,0,0,0.3)] transition-all duration-250 relative overflow-hidden flex flex-col">
       <div onClick={onClick} className="p-5 flex-1">
-        <div className={`absolute -top-7 -right-7 w-20 h-20 rounded-full opacity-15 ${color === 'primary' ? 'bg-primary' : color === 'secondary' ? 'bg-secondary' : color === 'success' ? 'bg-success' : 'bg-warning'}`}></div>
+        <div className={`absolute -top-7 -right-7 w-20 h-20 rounded-full opacity-10 ${color === 'primary' ? 'bg-primary' : color === 'secondary' ? 'bg-secondary' : color === 'success' ? 'bg-success' : 'bg-warning'}`}></div>
         <div className="text-3xl mb-2.5">{icon}</div>
         <div className="text-sm font-bold mb-1.5">{title}</div>
         <div className="text-[10px] text-muted mb-2.5">Maestria em {mastery}</div>
