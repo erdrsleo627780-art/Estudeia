@@ -230,16 +230,21 @@ function EduApp() {
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsAuthLoading(true);
+      
       if (firebaseUser) {
+        // Reset state to initial before loading new user data to prevent leakage
+        setState(initialAppState);
         setUser(firebaseUser);
         setAuthError(null);
+        
         // Load user data from Firestore
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
             const data = userDoc.data() as UserData;
-            setState(prev => ({
-              ...prev,
+            setState({
+              ...initialAppState,
               xp: data.xp,
               level: data.level,
               streak: data.streak,
@@ -248,12 +253,12 @@ function EduApp() {
               profileName: data.username,
               profileAvatar: data.profileAvatar,
               currentYear: data.currentYear,
-              currentCourse: data.currentCourse || prev.currentCourse,
-              subjectLevels: data.subjectLevels || prev.subjectLevels,
-            }));
+              currentCourse: data.currentCourse,
+              subjectLevels: data.subjectLevels || initialAppState.subjectLevels,
+            });
             setScreen('home');
           } else {
-            // If user exists in Auth but not in Firestore, show onboarding
+            // New user or profile not yet created
             setScreen('onboarding');
           }
         } catch (error) {
@@ -261,6 +266,7 @@ function EduApp() {
         }
       } else {
         setUser(null);
+        setState(initialAppState);
         setScreen('onboarding');
       }
       setIsAuthLoading(false);
@@ -325,7 +331,7 @@ function EduApp() {
             currentYear: state.currentYear,
             currentCourse: state.currentCourse,
             lastActive: new Date().toISOString(),
-            subjectLevels: state.subjectLevels
+            subjectLevels: initialAppState.subjectLevels
           });
           setScreen('home');
         } catch (error: any) {
@@ -397,11 +403,12 @@ function EduApp() {
 
   // Sync on state changes
   useEffect(() => {
-    if ((user || isLocalMode) && screen !== 'onboarding') {
+    // Only sync if we are not in the middle of an auth transition
+    if (!isAuthLoading && (user || isLocalMode) && screen !== 'onboarding') {
       const timer = setTimeout(() => syncToFirestore(state), 2000);
       return () => clearTimeout(timer);
     }
-  }, [state, user, isLocalMode, screen, syncToFirestore]);
+  }, [state, user, isLocalMode, screen, syncToFirestore, isAuthLoading]);
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [tempProfileName, setTempProfileName] = useState(state.profileName);
@@ -595,6 +602,7 @@ function EduApp() {
   const handleLogout = async () => {
     try {
       await auth.signOut();
+      localStorage.removeItem('edu_local_data');
       setState({
         ...initialAppState,
         password: ''
@@ -658,6 +666,63 @@ function EduApp() {
     }
   };
 
+  const getLevelTopic = (subject: string, level: number) => {
+    const themes: { [key: string]: string[] } = {
+      "Matemática": [
+        "Operações Básicas e Frações",
+        "Porcentagem e Proporção",
+        "Geometria Plana Básica",
+        "Equações de 1º Grau",
+        "Potenciação e Radiciação",
+        "Geometria Espacial e Áreas",
+        "Equações de 2º Grau e Funções",
+        "Trigonometria e Triângulos",
+        "Estatística e Probabilidade",
+        "Logaritmos e Progressões"
+      ],
+      "Português": [
+        "Ortografia e Plural",
+        "Sintaxe: Sujeito e Predicado",
+        "Tempos Verbais",
+        "Conjunções e Coesão",
+        "Figuras de Linguagem",
+        "Orações Subordinadas",
+        "Vozes Verbais",
+        "Pontuação e Crase",
+        "Literatura e Interpretação",
+        "Gramática Avançada e Redação"
+      ],
+      "Ciências": [
+        "Corpo Humano e Respiração",
+        "Células e Organelas",
+        "Sistema Solar e Astronomia",
+        "Ecologia e Cadeia Alimentar",
+        "Química Básica e Átomos",
+        "Física: Movimento e Força",
+        "Genética e DNA",
+        "Evolução e Biodiversidade",
+        "Sistemas do Corpo Avançado",
+        "Meio Ambiente e Sustentabilidade"
+      ],
+      "História": [
+        "Brasil Colônia e Império",
+        "Civilizações Antigas",
+        "História Geral: Idade Média",
+        "Renascimento e Grandes Navegações",
+        "Era Vargas e República Velha",
+        "Guerras Mundiais",
+        "Guerra Fria e Geopolítica",
+        "História Contemporânea",
+        "Cultura e Sociedade",
+        "Direitos Humanos e Cidadania"
+      ]
+    };
+
+    const subjectThemes = themes[subject] || themes["Matemática"];
+    const themeIndex = Math.min(Math.floor((level - 1) / 10), subjectThemes.length - 1);
+    return subjectThemes[themeIndex];
+  };
+
   const startExercicio = async (subject: string, topic: string, diff: number, isDaily: boolean = false, levelNum?: number, forceAI: boolean = false) => {
     if (forceAI && isLocalMode) {
       alert("Você está offline. Use o banco de questões local ou conecte-se à internet.");
@@ -676,7 +741,7 @@ function EduApp() {
     
     try {
       let qs: Question[] = [];
-      const levelDiff = levelNum ? (levelNum <= 30 ? 1 : levelNum <= 70 ? 2 : 3) : diff;
+      const levelDiff = levelNum ? (levelNum <= 25 ? 1 : levelNum <= 65 ? 2 : 3) : diff;
       
       // Diversify subjects if it's a general exercise or high level
       const subjects = ["Matemática", "Português", "Ciências", "História"];
@@ -684,7 +749,6 @@ function EduApp() {
 
       // 1. Try to find local questions first (Strictly Offline First)
       if (!forceAI) {
-        const levelDiff = levelNum ? (levelNum <= 30 ? 1 : levelNum <= 70 ? 2 : 3) : diff;
         const offlineKey = `offline_bank_${targetSubject}_${levelDiff}`;
         const offlineData = localStorage.getItem(offlineKey);
         
@@ -708,7 +772,15 @@ function EduApp() {
       // 2. If no local questions found OR forced AI, use Gemini
       if (qs.length === 0 || forceAI) {
         if (levelNum) {
-          qs = await generateQuestions(targetSubject, `Nível ${levelNum} de progressão para ${state.currentYear}`, levelDiff, 10, `level-${targetSubject}-${levelNum}-${state.currentYear}`, state.currentYear);
+          const specificTopic = getLevelTopic(targetSubject, levelNum);
+          qs = await generateQuestions(
+            targetSubject, 
+            `Nível ${levelNum} de progressão (Tema: ${specificTopic}) para ${state.currentYear}. Aumente a complexidade gradualmente.`, 
+            levelDiff, 
+            10, 
+            `level-v2-${targetSubject}-${levelNum}-${state.currentYear}`, 
+            state.currentYear
+          );
         } else if (isDaily) {
           const cacheKey = `daily_${targetSubject}_${today}_${state.currentYear}`;
           const cached = localStorage.getItem(cacheKey);

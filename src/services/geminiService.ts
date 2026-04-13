@@ -13,9 +13,11 @@ export async function generateQuestions(subject: string, topic: string, difficul
   }
   const difficultyLabel = ['', 'Fácil', 'Médio', 'Difícil'][difficulty];
   
+  const isLevelProgression = topic.includes("Nível");
   const prompt = `Gere uma lista massiva de ${count} perguntas de múltipla escolha ABSOLUTAMENTE ÚNICAS e diversificadas para a matéria "${subject}" sobre o tema "${topic}". 
   O nível escolar do aluno é "${schoolYear || 'Ensino Fundamental/Médio'}".
   A dificuldade deve ser "${difficultyLabel}".
+  ${isLevelProgression ? 'Esta questão faz parte de uma jornada de 100 níveis. Garanta que a complexidade e os conceitos sejam rigorosamente adequados ao nível mencionado, progredindo de conceitos básicos para avançados conforme o número do nível aumenta.' : ''}
   ${seed ? `Use este identificador de semente para garantir variedade absoluta e evitar qualquer repetição: ${seed}` : ''}
   As perguntas devem ser em Português do Brasil e adequadas pedagogicamente para o ano escolar mencionado.
   CRÍTICO: Garanta que NÃO haja repetições de enunciados ou conceitos. Cubra o máximo de sub-tópicos diferentes dentro da matéria.
