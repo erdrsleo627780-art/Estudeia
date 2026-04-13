@@ -173,6 +173,7 @@ function EduApp() {
   const [globalRanking, setGlobalRanking] = useState<UserData[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoginMode, setIsLoginMode] = useState(true);
   
   const initialAppState: AppState = {
     xp: 0,
@@ -193,6 +194,7 @@ function EduApp() {
     currentCourse: '',
     profileName: '',
     profileAvatar: '🦁',
+    password: '',
     dailyUsage: {},
     subjectLevels: {
       'Matemática': 1,
@@ -206,8 +208,20 @@ function EduApp() {
   const [state, setState] = useState<AppState>(initialAppState);
 
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isLocalMode, setIsLocalMode] = useState(false);
+  const [isLocalMode, setIsLocalMode] = useState(!navigator.onLine);
   
+  // Online/Offline Listener
+  useEffect(() => {
+    const handleOnline = () => setIsLocalMode(false);
+    const handleOffline = () => setIsLocalMode(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Auth Listener
   useEffect(() => {
     if (!isFirebaseEnabled) {
@@ -234,10 +248,12 @@ function EduApp() {
               profileName: data.username,
               profileAvatar: data.profileAvatar,
               currentYear: data.currentYear,
+              currentCourse: data.currentCourse || prev.currentCourse,
               subjectLevels: data.subjectLevels || prev.subjectLevels,
             }));
             setScreen('home');
           } else {
+            // If user exists in Auth but not in Firestore, show onboarding
             setScreen('onboarding');
           }
         } catch (error) {
@@ -245,14 +261,7 @@ function EduApp() {
         }
       } else {
         setUser(null);
-        // Auto-sign in anonymously to skip login screen
-        try {
-          await signInAnonymously(auth);
-        } catch (e) {
-          console.error("Erro ao entrar anonimamente:", e);
-          setIsLocalMode(true);
-          setScreen('onboarding');
-        }
+        setScreen('onboarding');
       }
       setIsAuthLoading(false);
     });
@@ -260,30 +269,79 @@ function EduApp() {
   }, []);
 
   const handleCreateUser = async () => {
-    if (state.profileName.length < 3 || !state.currentCourse) return;
+    if (state.profileName.length < 3) {
+      setLoginError("Nome deve ter pelo menos 3 caracteres.");
+      return;
+    }
+    if (state.password?.length !== 6) {
+      setLoginError("A senha deve ter exatamente 6 dígitos.");
+      return;
+    }
+    if (!isLoginMode && !state.currentCourse) {
+      setLoginError("Selecione um curso para começar.");
+      return;
+    }
+    if (!isLoginMode && !state.currentYear) {
+      setLoginError("Selecione sua série.");
+      return;
+    }
     
     setLoginError(null);
+    setIsAuthLoading(true);
     
+    const email = `${state.profileName.toLowerCase().replace(/\s/g, '')}@eduadaptive.com`;
+    const password = state.password;
+
     try {
-      if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          username: state.profileName,
-          xp: 0,
-          level: 1,
-          streak: 0,
-          correct: 0,
-          difficulty: 1,
-          profileAvatar: state.profileAvatar,
-          currentYear: state.currentCourse,
-          lastActive: new Date().toISOString(),
-          subjectLevels: state.subjectLevels
-        });
-        setScreen('home');
+      if (isLoginMode) {
+        // Login
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          // onAuthStateChanged will handle the rest
+        } catch (error: any) {
+          console.error("Erro ao fazer login:", error);
+          if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+            setLoginError("Usuário ou senha incorretos. Verifique os dados ou crie uma conta.");
+          } else {
+            setLoginError("Erro ao fazer login: " + error.message);
+          }
+          setIsAuthLoading(false);
+        }
+      } else {
+        // Signup
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const newUser = userCredential.user;
+          
+          await setDoc(doc(db, 'users', newUser.uid), {
+            uid: newUser.uid,
+            username: state.profileName,
+            xp: 0,
+            level: 1,
+            streak: 0,
+            correct: 0,
+            difficulty: 1,
+            profileAvatar: state.profileAvatar,
+            currentYear: state.currentYear,
+            currentCourse: state.currentCourse,
+            lastActive: new Date().toISOString(),
+            subjectLevels: state.subjectLevels
+          });
+          setScreen('home');
+        } catch (error: any) {
+          console.error("Erro ao criar conta:", error);
+          if (error.code === 'auth/email-already-in-use') {
+            setLoginError("Este nome já está em uso. Tente fazer login ou use outro nome.");
+          } else {
+            setLoginError("Erro ao criar conta: " + error.message);
+          }
+          setIsAuthLoading(false);
+        }
       }
     } catch (error: any) {
-      console.error("Erro ao salvar perfil:", error);
-      setLoginError('Erro ao salvar perfil: ' + error.message);
+      console.error("Erro geral na autenticação:", error);
+      setLoginError("Erro na autenticação: " + error.message);
+      setIsAuthLoading(false);
     }
   };
 
@@ -325,6 +383,7 @@ function EduApp() {
         difficulty: newState.difficulty,
         profileAvatar: newState.profileAvatar,
         currentYear: newState.currentYear,
+        currentCourse: newState.currentCourse,
         lastActive: new Date().toISOString(),
         subjectLevels: newState.subjectLevels,
       };
@@ -533,10 +592,28 @@ function EduApp() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      setState({
+        ...initialAppState,
+        password: ''
+      });
+      setIsLoginMode(true);
+      setScreen('onboarding');
+    } catch (error) {
+      console.error("Erro ao sair:", error);
+    }
+  };
+
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [isGeneratingOffline, setIsGeneratingOffline] = useState(false);
 
   const generateOfflineBank = async () => {
+    if (isLocalMode) {
+      alert("Você precisa de internet para gerar o banco de questões via IA.");
+      return;
+    }
     if (!isAIAvailable) {
       alert("IA não configurada. Verifique sua conexão e chave de API.");
       return;
@@ -582,6 +659,10 @@ function EduApp() {
   };
 
   const startExercicio = async (subject: string, topic: string, diff: number, isDaily: boolean = false, levelNum?: number, forceAI: boolean = false) => {
+    if (forceAI && isLocalMode) {
+      alert("Você está offline. Use o banco de questões local ou conecte-se à internet.");
+      return;
+    }
     const today = new Date().toISOString().split('T')[0];
     const usage = state.dailyUsage[subject];
     if (usage && usage.lastDate === today && usage.count >= 200) {
@@ -693,10 +774,11 @@ function EduApp() {
   const renderOnboarding = () => (
     <div className="flex flex-col items-center justify-center text-center p-10 min-h-screen bg-gradient-to-br from-bg2 to-bg3 animate-fade-in">
       <div className="text-8xl mb-5 drop-shadow-[0_0_30px_rgba(212,185,150,0.4)]">🎓</div>
-      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">Bem-vindo!</h1>
+      <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-text to-primary bg-clip-text text-transparent">
+        {isLoginMode ? 'Bem-vindo de volta!' : 'Crie sua conta!'}
+      </h1>
       <p className="text-muted text-sm mb-8 leading-relaxed">
-        Crie seu perfil para começar sua jornada.<br/>
-        <span className="font-bold text-primary">Seu progresso será salvo automaticamente!</span>
+        {isLoginMode ? 'Entre com seu nome e senha de 6 dígitos.' : 'Cadastre-se para salvar seu progresso automaticamente!'}
       </p>
       
       <div className="w-full max-w-xs flex flex-col gap-6">
@@ -719,69 +801,122 @@ function EduApp() {
         </div>
 
         <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Série / Ano Escolar</label>
-          <div className="grid grid-cols-3 gap-2">
-            {['6º Ano', '7º Ano', '8º Ano', '9º Ano', '1º EM', '2º EM'].map(year => (
-              <button 
-                key={year}
-                onClick={() => setState(prev => ({ ...prev, currentYear: year }))}
-                className={`bg-card border rounded-lg py-2.5 text-[10px] font-bold transition-all ${state.currentYear === year ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'border-border text-muted hover:border-primary/50'}`}
-              >
-                {year}
-              </button>
-            ))}
+          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Senha (6 dígitos)</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 text-muted" size={18} />
+            <input 
+              type="password" 
+              maxLength={6}
+              placeholder="Digite sua senha" 
+              value={state.password}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                setState(prev => ({ ...prev, password: val }));
+              }}
+              className="bg-card border border-border rounded-xl pl-10 pr-4 py-3 w-full outline-none focus:border-primary text-sm font-bold tracking-widest"
+            />
           </div>
-          {!state.currentYear && <span className="text-[10px] text-danger ml-1">Selecione sua série</span>}
+          {state.password?.length !== 6 && <span className="text-[10px] text-danger ml-1">Deve ter 6 dígitos</span>}
         </div>
 
-        <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Curso Desejado</label>
-          <div className="grid grid-cols-2 gap-2">
-            {['Matemática', 'Português', 'Ciências', 'História', 'Geral'].map(course => (
-              <button 
-                key={course}
-                onClick={() => setState(prev => ({ ...prev, currentCourse: course }))}
-                className={`bg-card border rounded-lg py-2.5 text-[10px] font-bold transition-all ${state.currentCourse === course ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'border-border text-muted hover:border-primary/50'}`}
-              >
-                {course}
-              </button>
-            ))}
-          </div>
-          {!state.currentCourse && <span className="text-[10px] text-danger ml-1">Selecione um curso</span>}
-        </div>
+        {!isLoginMode && (
+          <>
+            <div className="flex flex-col gap-2 text-left">
+              <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Série / Ano Escolar</label>
+              <div className="grid grid-cols-3 gap-2">
+                {['6º Ano', '7º Ano', '8º Ano', '9º Ano', '1º EM', '2º EM'].map(year => (
+                  <button 
+                    key={year}
+                    onClick={() => setState(prev => ({ ...prev, currentYear: year }))}
+                    className={`bg-card border rounded-lg py-2.5 text-[10px] font-bold transition-all ${state.currentYear === year ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'border-border text-muted hover:border-primary/50'}`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+              {!state.currentYear && <span className="text-[10px] text-danger ml-1">Selecione sua série</span>}
+            </div>
 
-        <div className="flex flex-col gap-2 text-left">
-          <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Escolha seu Avatar</label>
-          <div className="flex justify-between bg-card border border-border rounded-xl p-2">
-            {AVATARS.slice(0, 5).map(avatar => (
-              <button 
-                key={avatar.id}
-                onClick={() => setState(prev => ({ ...prev, profileAvatar: avatar.emoji }))}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all ${state.profileAvatar === avatar.emoji ? 'bg-primary/20 scale-110' : 'hover:bg-white/5'}`}
-              >
-                {avatar.emoji}
-              </button>
-            ))}
-          </div>
-        </div>
+            <div className="flex flex-col gap-2 text-left">
+              <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Curso Desejado</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['Matemática', 'Português', 'Ciências', 'História', 'Geral'].map(course => (
+                  <button 
+                    key={course}
+                    onClick={() => setState(prev => ({ ...prev, currentCourse: course }))}
+                    className={`bg-card border rounded-lg py-2.5 text-[10px] font-bold transition-all ${state.currentCourse === course ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'border-border text-muted hover:border-primary/50'}`}
+                  >
+                    {course}
+                  </button>
+                ))}
+              </div>
+              {!state.currentCourse && <span className="text-[10px] text-danger ml-1">Selecione um curso</span>}
+            </div>
+
+            <div className="flex flex-col gap-2 text-left">
+              <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Escolha seu Avatar</label>
+              <div className="flex justify-between bg-card border border-border rounded-xl p-2">
+                {AVATARS.slice(0, 5).map(avatar => (
+                  <button 
+                    key={avatar.id}
+                    onClick={() => setState(prev => ({ ...prev, profileAvatar: avatar.emoji }))}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all ${state.profileAvatar === avatar.emoji ? 'bg-primary/20 scale-110' : 'hover:bg-white/5'}`}
+                  >
+                    {avatar.emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
       
       {loginError && <div className="text-[10px] text-danger font-bold mt-4">{loginError}</div>}
 
       <button 
-        disabled={!state.currentCourse || !state.currentYear || state.profileName.length < 3}
+        disabled={isAuthLoading || state.profileName.length < 3 || state.password?.length !== 6 || (!isLoginMode && (!state.currentCourse || !state.currentYear))}
         onClick={async () => { 
+          if (isLocalMode) {
+            alert("Você está offline. O login/cadastro requer internet. Use o Modo Visitante para estudar offline.");
+            return;
+          }
           await handleCreateUser();
         }}
         className="btn-primary w-full max-w-xs mt-10 disabled:opacity-50 disabled:grayscale relative group"
       >
-        Começar a Estudar →
-        {(!state.currentCourse || !state.currentYear || state.profileName.length < 3) && (
-          <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-danger text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
-            Preencha todos os campos corretamente
-          </div>
+        {isAuthLoading ? (
+          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+        ) : (
+          isLoginMode ? 'Entrar →' : 'Começar a Estudar →'
         )}
       </button>
+
+      <button 
+        onClick={() => {
+          setIsLoginMode(!isLoginMode);
+          setLoginError(null);
+        }}
+        className="mt-6 text-xs font-bold text-muted hover:text-primary transition-colors"
+      >
+        {isLoginMode ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Faça login'}
+      </button>
+
+      {isLocalMode && (
+        <button 
+          onClick={() => {
+            setState(prev => ({
+              ...prev,
+              profileName: 'Visitante',
+              currentYear: 'Geral',
+              currentCourse: 'Geral'
+            }));
+            setScreen('home');
+          }}
+          className="mt-4 text-[10px] font-bold text-warning border border-warning/30 px-4 py-2 rounded-lg hover:bg-warning/10 transition-all"
+        >
+          Entrar como Visitante (Modo Offline)
+        </button>
+      )}
     </div>
   );
 
@@ -793,7 +928,9 @@ function EduApp() {
             <div className="flex items-center gap-2">
               <div className="text-xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">EduAdaptive</div>
               {isLocalMode && (
-                <span className="text-[8px] bg-warning/20 text-warning px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Offline</span>
+                <div className="flex items-center gap-1 bg-danger/10 text-danger px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse border border-danger/20">
+                  <WifiOff size={8} /> Offline
+                </div>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -822,6 +959,13 @@ function EduApp() {
               <div className="flex items-center gap-1.5 bg-card border border-border rounded-full px-3.5 py-1.5 text-xs font-bold text-warning">
                 <Zap size={14} /> {state.xp.toLocaleString()} XP
               </div>
+              <button 
+                onClick={handleLogout}
+                className="w-8 h-8 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center text-danger hover:bg-danger hover:text-white transition-all"
+                title="Sair da Conta"
+              >
+                <User size={14} />
+              </button>
             </div>
           </div>
           

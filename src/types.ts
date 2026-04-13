@@ -26,6 +26,8 @@ export interface UserData {
   difficulty: number;
   profileAvatar: string;
   currentYear: string;
+  currentCourse: string;
+  password?: string;
   lastActive: string;
   subjectLevels?: { [subject: string]: number };
 }
@@ -49,6 +51,7 @@ export interface AppState {
   currentCourse: string;
   profileName: string;
   profileAvatar: string;
+  password?: string;
   dailyUsage: { [subject: string]: { count: number; lastDate: string } };
   subjectLevels: { [subject: string]: number };
   currentLevel: number;

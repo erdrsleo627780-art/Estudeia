@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Support environment variables for production deployments (like Vercel)
@@ -24,4 +24,16 @@ const app = isConfigValid
 
 export const auth = app ? getAuth(app) : ({} as any);
 export const db = app ? getFirestore(app, databaseId) : ({} as any);
+
+// Enable offline persistence
+if (app) {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Persistence failed: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Persistence is not available in this browser');
+    }
+  });
+}
+
 export const isFirebaseEnabled = !!app;
