@@ -196,6 +196,7 @@ function EduApp() {
     profileAvatar: '🦁',
     password: '',
     dailyUsage: {},
+    weeklyStats: {},
     subjectLevels: {
       'Matemática': 1,
       'Português': 1,
@@ -255,6 +256,7 @@ function EduApp() {
               currentYear: data.currentYear,
               currentCourse: data.currentCourse,
               subjectLevels: data.subjectLevels || initialAppState.subjectLevels,
+              weeklyStats: data.weeklyStats || initialAppState.weeklyStats,
             });
             setScreen('home');
           } else {
@@ -331,7 +333,8 @@ function EduApp() {
             currentYear: state.currentYear,
             currentCourse: state.currentCourse,
             lastActive: new Date().toISOString(),
-            subjectLevels: initialAppState.subjectLevels
+            subjectLevels: initialAppState.subjectLevels,
+            weeklyStats: initialAppState.weeklyStats
           });
           setScreen('home');
         } catch (error: any) {
@@ -392,6 +395,7 @@ function EduApp() {
         currentCourse: newState.currentCourse,
         lastActive: new Date().toISOString(),
         subjectLevels: newState.subjectLevels,
+        weeklyStats: newState.weeklyStats
       };
       try {
         await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
@@ -471,6 +475,7 @@ function EduApp() {
     
     const today = new Date().toISOString().split('T')[0];
     const currentUsage = state.dailyUsage[state.currentSubject] || { count: 0, lastDate: today };
+    const currentWeekly = state.weeklyStats[today] || 0;
     
     setState(prev => ({
       ...prev,
@@ -486,6 +491,10 @@ function EduApp() {
           count: currentUsage.lastDate === today ? currentUsage.count + 1 : 1,
           lastDate: today
         }
+      },
+      weeklyStats: {
+        ...prev.weeklyStats,
+        [today]: currentWeekly + 1
       }
     }));
 
@@ -537,6 +546,45 @@ function EduApp() {
       setState(prev => ({ ...prev, level: prev.level + 1 }));
       setShowLevelUp(true);
     }
+  };
+
+  const getWeeklyData = () => {
+    const days = [];
+    const labels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayIndex = d.getDay();
+      days.push({
+        label: labels[dayIndex],
+        count: state.weeklyStats[dateStr] || 0,
+        isToday: i === 0
+      });
+    }
+    return days;
+  };
+
+  const getTopicForLevel = (subject: string, level: number) => {
+    const topics: { [key: string]: string[] } = {
+      'Matemática': ['Operações Básicas', 'Frações e Decimais', 'Geometria Plana', 'Álgebra Inicial', 'Porcentagem', 'Estatística', 'Trigonometria', 'Funções', 'Geometria Espacial', 'Logaritmos'],
+      'Português': ['Ortografia', 'Gramática Básica', 'Sintaxe', 'Pontuação', 'Literatura Brasileira', 'Interpretação', 'Redação', 'Morfologia', 'Figuras de Linguagem', 'Semântica'],
+      'Ciências': ['Corpo Humano', 'Plantas e Animais', 'Ecossistemas', 'Sistema Solar', 'Matéria e Energia', 'Células', 'Genética', 'Química Básica', 'Física Básica', 'Evolução'],
+      'História': ['Brasil Colônia', 'Brasil Império', 'Brasil República', 'Antiguidade', 'Idade Média', 'Renascimento', 'Revoluções', 'Guerras Mundiais', 'Guerra Fria', 'Mundo Contemporâneo']
+    };
+    const subjectTopics = topics[subject] || topics['Matemática'];
+    const topicIndex = Math.min(Math.floor((level - 1) / 10), 9);
+    return subjectTopics[topicIndex];
+  };
+
+  const getLeague = (xp: number) => {
+    if (xp < 500) return 'Bronze';
+    if (xp < 1500) return 'Prata';
+    if (xp < 3000) return 'Ouro';
+    if (xp < 6000) return 'Platina';
+    return 'Diamante';
   };
 
   const nextQuestion = (skipReview = false) => {
@@ -1065,7 +1113,7 @@ function EduApp() {
               <CheckCircle2 size={14} className="text-success" /> {state.correct} acertos
             </div>
             <div className="flex items-center gap-1.5 bg-card2 rounded-xl px-3.5 py-2 text-xs font-semibold">
-              <Trophy size={14} className="text-warning" /> Liga Ouro
+              <Trophy size={14} className="text-warning" /> Liga {getLeague(state.xp)}
             </div>
           </div>
         </div>
@@ -1076,7 +1124,7 @@ function EduApp() {
         >
           <div>
             <div className="font-extrabold text-base text-white">⚡ Desafio de 100 Questões</div>
-            <div className="text-white/70 text-xs">Matemática · Tópicos Variados · Nível 2</div>
+            <div className="text-white/70 text-xs">Matemática · Tópicos Variados · Nível {state.subjectLevels['Matemática']}</div>
           </div>
           <div className="bg-white/20 rounded-xl px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap">5× XP</div>
         </div>
@@ -1096,25 +1144,33 @@ function EduApp() {
         <div className="grid grid-cols-2 gap-3 px-6">
           <SubjectCard 
             title="Matemática" icon={<Calculator size={28} className="text-primary" />} 
-            mastery="Frações" progress={63} color="primary"
+            mastery={getTopicForLevel('Matemática', state.subjectLevels['Matemática'])} 
+            progress={state.subjectLevels['Matemática']} 
+            color="primary"
             onClick={() => { setState(prev => ({ ...prev, currentSubject: 'Matemática' })); setScreen('levels'); }}
             onDaily={() => startExercicio('Matemática', 'Desafio Diário', 2, true)}
           />
           <SubjectCard 
             title="Português" icon={<BookOpen size={28} className="text-secondary" />} 
-            mastery="Gramática" progress={52} color="secondary"
+            mastery={getTopicForLevel('Português', state.subjectLevels['Português'])} 
+            progress={state.subjectLevels['Português']} 
+            color="secondary"
             onClick={() => { setState(prev => ({ ...prev, currentSubject: 'Português' })); setScreen('levels'); }}
             onDaily={() => startExercicio('Português', 'Desafio Diário', 2, true)}
           />
           <SubjectCard 
             title="Ciências" icon={<Microscope size={28} className="text-success" />} 
-            mastery="Biologia" progress={56} color="success"
+            mastery={getTopicForLevel('Ciências', state.subjectLevels['Ciências'])} 
+            progress={state.subjectLevels['Ciências']} 
+            color="success"
             onClick={() => { setState(prev => ({ ...prev, currentSubject: 'Ciências' })); setScreen('levels'); }}
             onDaily={() => startExercicio('Ciências', 'Biologia Celular', 3)}
           />
           <SubjectCard 
             title="História" icon={<History size={28} className="text-warning" />} 
-            mastery="Brasil" progress={45} color="warning"
+            mastery={getTopicForLevel('História', state.subjectLevels['História'])} 
+            progress={state.subjectLevels['História']} 
+            color="warning"
             onClick={() => { setState(prev => ({ ...prev, currentSubject: 'História' })); setScreen('levels'); }}
             onDaily={() => startExercicio('História', 'Brasil Colonial', 2)}
           />
@@ -1124,18 +1180,30 @@ function EduApp() {
         <div className="px-6 mb-3">
           <div className="flex justify-between mb-2">
             <span className="text-xs text-muted">Questões respondidas</span>
-            <span className="text-xs font-bold">47 / 70</span>
+            <span className="text-xs font-bold">
+              {getWeeklyData().reduce((acc, d) => acc + d.count, 0)} / 70
+            </span>
           </div>
           <div className="h-2 bg-card2 rounded-full overflow-hidden">
-            <div className="w-[67%] h-full bg-gradient-to-r from-primary to-secondary rounded-full"></div>
+            <div 
+              className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, (getWeeklyData().reduce((acc, d) => acc + d.count, 0) / 70) * 100)}%` }}
+            ></div>
           </div>
           <div className="grid grid-cols-7 gap-1 mt-3">
-            {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((day, i) => (
-              <div key={i} className="text-center">
-                <div className="text-[10px] text-muted mb-1">{day}</div>
-                <div className={`rounded-sm ${i < 6 ? 'bg-success' : 'bg-card2'}`} style={{ height: `${[32, 24, 40, 20, 36, 28, 10][i]}px`, opacity: [0.9, 0.7, 1, 0.6, 0.8, 0.8, 1][i] }}></div>
-              </div>
-            ))}
+            {getWeeklyData().map((day, i) => {
+              const maxCount = Math.max(...getWeeklyData().map(d => d.count), 1);
+              const height = Math.max(4, (day.count / maxCount) * 40);
+              return (
+                <div key={i} className="text-center">
+                  <div className={`text-[10px] mb-1 ${day.isToday ? 'text-primary font-bold' : 'text-muted'}`}>{day.label}</div>
+                  <div 
+                    className={`rounded-sm transition-all duration-500 ${day.count > 0 ? 'bg-success' : 'bg-card2'}`} 
+                    style={{ height: `${height}px`, opacity: day.isToday ? 1 : 0.7 }}
+                  ></div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1689,7 +1757,7 @@ function SubjectCard({ title, icon, mastery, progress, color, onClick, onDaily }
         <div className="text-[10px] text-muted mb-2.5">Maestria em {mastery}</div>
         <div className="flex items-center justify-between">
           <div className="text-[10px] text-muted leading-tight">
-            {title === 'Matemática' ? 'Geometria: 40%\nFrações: 85%' : title === 'Português' ? 'Gramática: 72%\nRedação: 55%' : title === 'Ciências' ? 'Biologia: 78%\nQuímica: 30%' : 'Brasil: 68%\nGeral: 45%'}
+            Nível {progress} de 100
           </div>
           <div className="relative w-10 h-10">
             <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">

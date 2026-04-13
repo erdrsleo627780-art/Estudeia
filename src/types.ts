@@ -30,6 +30,7 @@ export interface UserData {
   password?: string;
   lastActive: string;
   subjectLevels?: { [subject: string]: number };
+  weeklyStats?: { [date: string]: number };
 }
 
 export interface AppState {
@@ -53,6 +54,7 @@ export interface AppState {
   profileAvatar: string;
   password?: string;
   dailyUsage: { [subject: string]: { count: number; lastDate: string } };
+  weeklyStats: { [date: string]: number };
   subjectLevels: { [subject: string]: number };
   currentLevel: number;
 }
