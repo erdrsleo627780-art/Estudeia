@@ -1,108 +1,131 @@
 import { Question, QuestionDatabase } from './types';
 
 export const QUESTIONS_BY_SUBJECT: QuestionDatabase = {
-  "Matemática": {
-    1: [
-      { q: "Quanto é 1/2 + 1/4?", opts: ["1/6", "3/4", "2/4", "1/8"], ans: 1, explanation: ["Encontre o MMC de 2 e 4, que é 4.", "Converta 1/2 = 2/4.", "Some: 2/4 + 1/4 = 3/4."], mistake: "Somar os denominadores diretamente (1/2+1/4 ≠ 2/6)." },
-      { q: "Qual é o valor de 25% de 80?", opts: ["15", "20", "25", "30"], ans: 1, explanation: ["25% = 25/100.", "(25/100) × 80 = 20.", "Resultado: 20."], mistake: "Confundir 25% com 1/5." },
-      { q: "Simplifique a fração 12/18.", opts: ["2/3", "3/4", "4/6", "1/2"], ans: 0, explanation: ["MDC(12,18) = 6.", "12÷6=2 e 18÷6=3.", "Resultado: 2/3."], mistake: "Dividir só o numerador ou só o denominador." },
-      { q: "Qual é o dobro de 37?", opts: ["64", "74", "84", "67"], ans: 1, explanation: ["Dobro = multiplicar por 2.", "37 × 2 = 74.", "Verifique: 30×2=60 e 7×2=14 → 74."], mistake: "Errar a adição 37+37." },
-      { q: "Quanto é 15% de 200?", opts: ["20", "25", "30", "35"], ans: 2, explanation: ["10% de 200 = 20.", "5% de 200 = 10.", "15% = 20+10 = 30."], mistake: "Parar em 10% e esquecer os 5% restantes." },
-      { q: "Qual o perímetro de um quadrado com lado 7cm?", opts: ["14cm", "21cm", "28cm", "49cm"], ans: 2, explanation: ["Perímetro = 4 × lado.", "4 × 7 = 28 cm.", "Não confundir com área (7²=49)."], mistake: "Calcular a área em vez do perímetro." },
-      { q: "Quanto é 3/5 de 40?", opts: ["15", "20", "24", "30"], ans: 2, explanation: ["40 ÷ 5 = 8.", "8 × 3 = 24.", "Resultado: 24."], mistake: "Multiplicar 3×40 sem dividir por 5." },
-      { q: "Qual o valor de 7 x 8?", opts: ["54", "56", "64", "48"], ans: 1, explanation: ["Tabuada do 7 ou do 8.", "7 x 8 = 56.", "Verifique: 7x7=49 + 7 = 56."], mistake: "Confundir com 7x9=63 ou 6x8=48." },
-      { q: "Quanto é 100 - 37?", opts: ["63", "73", "53", "67"], ans: 0, explanation: ["100 - 30 = 70.", "70 - 7 = 63.", "Resultado: 63."], mistake: "Errar a subtração na dezena." },
-      { q: "Qual o sucessor de 999?", opts: ["998", "1000", "1001", "1100"], ans: 1, explanation: ["Sucessor é o número + 1.", "999 + 1 = 1000.", "Resultado: 1000."], mistake: "Confundir com antecessor (998)." },
-    ],
-    2: [
-      { q: "Se 3x + 7 = 22, qual é o valor de x?", opts: ["3", "4", "5", "6"], ans: 2, explanation: ["3x = 22 - 7 = 15.", "x = 15 ÷ 3 = 5.", "Resultado: x = 5."], mistake: "Esquecer de dividir por 3 no final." },
-      { q: "Uma sala tem 12 meninos e 8 meninas. Qual a % de meninas?", opts: ["30%", "35%", "40%", "45%"], ans: 2, explanation: ["Total = 12+8 = 20.", "8/20 × 100 = 40%.", "Resultado: 40%."], mistake: "Dividir 8 por 12 em vez de 8 por 20." },
-      { q: "Qual a área de um retângulo com base 8cm e altura 5cm?", opts: ["26cm²", "40cm²", "13cm²", "80cm²"], ans: 1, explanation: ["A = base × altura.", "A = 8 × 5 = 40 cm².", "Perímetro seria 2×(8+5)=26."], mistake: "Calcular o perímetro em vez da área." },
-      { q: "Resolva: 2(x - 3) = 10. Quanto é x?", opts: ["4", "6", "7", "8"], ans: 3, explanation: ["2x - 6 = 10.", "2x = 16.", "x = 8."], mistake: "Dividir 10 por 2 primeiro sem expandir o parêntese." },
-      { q: "Qual o valor de 2³ + 3²?", opts: ["13", "17", "19", "25"], ans: 1, explanation: ["2³ = 8.", "3² = 9.", "8 + 9 = 17."], mistake: "Calcular 2×3 + 3×2 = 12." },
-      { q: "Um triângulo tem ângulos 60° e 80°. Qual o terceiro?", opts: ["30°", "40°", "50°", "60°"], ans: 1, explanation: ["Soma dos ângulos = 180°.", "180 - 60 - 80 = 40°.", "Resultado: 40°."], mistake: "Subtrair apenas um dos ângulos." },
-      { q: "Qual é a média de: 4, 8, 6, 10, 12?", opts: ["7", "8", "9", "10"], ans: 1, explanation: ["Soma: 4+8+6+10+12 = 40.", "40 ÷ 5 = 8.", "Média = 8."], mistake: "Dividir pela soma em vez de pela quantidade de valores." },
-      { q: "Qual a raiz quadrada de 144?", opts: ["10", "12", "14", "16"], ans: 1, explanation: ["12 x 12 = 144.", "Portanto, √144 = 12.", "Verifique: 10²=100, 12²=144."], mistake: "Confundir com 14." },
-      { q: "Se um carro viaja a 80km/h, quanto percorre em 3 horas?", opts: ["200km", "240km", "280km", "300km"], ans: 1, explanation: ["Distância = Velocidade x Tempo.", "80 x 3 = 240 km.", "Resultado: 240km."], mistake: "Somar 80+3 em vez de multiplicar." },
-    ],
-    3: [
-      { q: "Resolva: (x² - 9) / (x - 3) para x ≠ 3", opts: ["x-3", "x+3", "x²+3", "3x"], ans: 1, explanation: ["x²-9 = (x+3)(x-3).", "(x+3)(x-3)/(x-3) = x+3.", "Resultado: x+3."], mistake: "Dividir x² por x e 9 por 3 separadamente." },
-      { q: "Em uma PA, o 1º termo é 3 e a razão é 5. Qual o 10º termo?", opts: ["48", "50", "53", "45"], ans: 0, explanation: ["aₙ = a₁ + (n-1)×r.", "a₁₀ = 3 + 9×5 = 48.", "Resultado: 48."], mistake: "Usar n em vez de (n-1): 3+10×5=53." },
-      { q: "Qual o discriminante de x² - 5x + 6 = 0?", opts: ["1", "25", "6", "4"], ans: 0, explanation: ["Δ = b² - 4ac.", "a=1, b=-5, c=6.", "Δ = 25-24 = 1."], mistake: "Esquecer de multiplicar por 4ac." },
-      { q: "Se log₂(x) = 5, quanto vale x?", opts: ["10", "25", "32", "64"], ans: 2, explanation: ["log₂(x)=5 → 2⁵=x.", "2⁵ = 32.", "Resultado: 32."], mistake: "Calcular 2×5=10." },
-      { q: "Quantas diagonais tem um hexágono?", opts: ["6", "9", "12", "15"], ans: 1, explanation: ["Diagonais = n(n-3)/2.", "6×3/2 = 9.", "Resultado: 9 diagonais."], mistake: "Confundir o número de lados com o de diagonais." },
-      { q: "Qual é o valor de sen(30°)?", opts: ["√3/2", "1/2", "√2/2", "1"], ans: 1, explanation: ["Triângulo 30-60-90: lados 1, √3, 2.", "sen(30°) = oposto/hipotenusa = 1/2.", "Resultado: 1/2."], mistake: "Confundir sen(30°) with cos(30°)=√3/2." },
-      { q: "Qual a derivada de f(x) = x²?", opts: ["x", "2x", "2", "x/2"], ans: 1, explanation: ["Regra do tombo: d/dx(xⁿ) = nxⁿ⁻¹.", "d/dx(x²) = 2x²⁻¹ = 2x.", "Resultado: 2x."], mistake: "Pensar que a derivada de x² é x." },
-      { q: "Resolva a integral de 2x dx.", opts: ["x² + C", "2x² + C", "x + C", "2 + C"], ans: 0, explanation: ["Integral de xⁿ = xⁿ⁺¹/(n+1).", "Integral de 2x = 2 * (x²/2) = x².", "Adicionamos a constante C."], mistake: "Esquecer de dividir por 2." },
-    ]
+  "6º Ano": {
+    "Matemática": {
+      1: [
+        { q: "Quanto é 1/2 + 1/4?", opts: ["1/6", "3/4", "2/4", "1/8"], ans: 1, explanation: ["MMC de 2 e 4 é 4.", "1/2 = 2/4.", "2/4 + 1/4 = 3/4."], mistake: "Somar denominadores." },
+        { q: "Qual o valor de 25% de 80?", opts: ["15", "20", "25", "30"], ans: 1, explanation: ["25% = 1/4.", "80 / 4 = 20."], mistake: "Confundir 25% com 1/5." },
+        { q: "Simplifique 12/18.", opts: ["2/3", "3/4", "4/6", "1/2"], ans: 0, explanation: ["Divida por 6.", "12/6=2, 18/6=3."], mistake: "Dividir errado." },
+        { q: "Dobro de 37?", opts: ["64", "74", "84", "67"], ans: 1, explanation: ["37 * 2 = 74."], mistake: "Erro na soma." },
+        { q: "15% de 200?", opts: ["20", "25", "30", "35"], ans: 2, explanation: ["0,15 * 200 = 30."], mistake: "Erro no cálculo." },
+        { q: "Perímetro de quadrado lado 7cm?", opts: ["14cm", "21cm", "28cm", "49cm"], ans: 2, explanation: ["4 * 7 = 28."], mistake: "Calcular área." },
+        { q: "3/5 de 40?", opts: ["15", "20", "24", "30"], ans: 2, explanation: ["(40/5)*3 = 24."], mistake: "Multiplicar sem dividir." },
+        { q: "7 x 8?", opts: ["54", "56", "64", "48"], ans: 1, explanation: ["Tabuada: 56."], mistake: "Confundir tabuada." },
+        { q: "100 - 37?", opts: ["63", "73", "53", "67"], ans: 0, explanation: ["100-30=70, 70-7=63."], mistake: "Erro na dezena." },
+        { q: "Sucessor de 999?", opts: ["998", "1000", "1001", "1100"], ans: 1, explanation: ["999 + 1 = 1000."], mistake: "Antecessor." },
+        { q: "Qual o valor de 5²?", opts: ["10", "15", "25", "50"], ans: 2, explanation: ["5 * 5 = 25."], mistake: "Fazer 5*2." },
+        { q: "Raiz quadrada de 81?", opts: ["7", "8", "9", "10"], ans: 2, explanation: ["9 * 9 = 81."], mistake: "Dividir por 2." },
+        { q: "Quanto é 0,5 + 0,25?", opts: ["0,7", "0,75", "0,8", "1,0"], ans: 1, explanation: ["0,50 + 0,25 = 0,75."], mistake: "Alinhamento decimal." },
+        { q: "Um ângulo reto mede:", opts: ["45°", "90°", "180°", "360°"], ans: 1, explanation: ["Ângulo reto = 90°."], mistake: "Ângulo raso." },
+        { q: "Triplo de 15?", opts: ["30", "45", "60", "75"], ans: 1, explanation: ["15 * 3 = 45."], mistake: "Dobro." }
+      ],
+      2: [
+        { q: "Se 3x + 7 = 22, qual o valor de x?", opts: ["3", "4", "5", "6"], ans: 2, explanation: ["3x = 15, x = 5."], mistake: "Erro na subtração." },
+        { q: "Área de retângulo 8x5cm?", opts: ["26cm²", "40cm²", "13cm²", "80cm²"], ans: 1, explanation: ["8 * 5 = 40."], mistake: "Perímetro." },
+        { q: "Média de 4, 8, 6, 10, 12?", opts: ["7", "8", "9", "10"], ans: 1, explanation: ["40 / 5 = 8."], mistake: "Soma errada." },
+        { q: "Raiz de 144?", opts: ["10", "12", "14", "16"], ans: 1, explanation: ["12 * 12 = 144."], mistake: "Confundir com 14." },
+        { q: "80km/h em 3h percorre:", opts: ["200km", "240km", "280km", "300km"], ans: 1, explanation: ["80 * 3 = 240."], mistake: "Somar." }
+      ]
+    },
+    "Português": {
+      1: [
+        { q: "Qual o plural de 'cidadão'?", opts: ["cidadões", "cidadãos", "cidadõens", "cidadõs"], ans: 1, explanation: ["Cidadãos é o plural correto."], mistake: "Generalizar -ões." },
+        { q: "Em 'O menino correu', qual o sujeito?", opts: ["correu", "rápido", "O menino", "menino"], ans: 2, explanation: ["Quem correu? O menino."], mistake: "Confundir com o verbo." },
+        { q: "Qual palavra está escrita corretamente?", opts: ["excessão", "exceção", "escepção", "exeção"], ans: 1, explanation: ["Exceção deriva de exceto."], mistake: "Escrever excessão." },
+        { q: "Antônimo de 'feliz'?", opts: ["alegre", "contente", "triste", "animado"], ans: 2, explanation: ["Antônimo é o oposto."], mistake: "Sinônimo." },
+        { q: "Coletivo de 'peixes'?", opts: ["Alcateia", "Cardume", "Enxame", "Manada"], ans: 1, explanation: ["Cardume = peixes."], mistake: "Alcateia." },
+        { q: "Sílaba tônica de 'café'?", opts: ["ca", "fé", "Não tem", "As duas"], ans: 1, explanation: ["Café é oxítona."], mistake: "Primeira sílaba." },
+        { q: "Qual o substantivo em 'A casa é bela'?", opts: ["A", "casa", "é", "bela"], ans: 1, explanation: ["Casa nomeia o objeto."], mistake: "Adjetivo." },
+        { q: "Qual o adjetivo em 'O carro azul'?", opts: ["O", "carro", "azul", "carro azul"], ans: 2, explanation: ["Azul caracteriza o carro."], mistake: "Substantivo." },
+        { q: "Plural de 'pão'?", opts: ["pãos", "pães", "pões", "pãens"], ans: 1, explanation: ["Pães é o plural irregular."], mistake: "Pãos." },
+        { q: "Qual o verbo em 'Eu estudo muito'?", opts: ["Eu", "estudo", "muito", "estudo muito"], ans: 1, explanation: ["Estudo indica a ação."], mistake: "Pronome." },
+        { q: "Sinônimo de 'rápido'?", opts: ["lento", "devagar", "veloz", "parado"], ans: 2, explanation: ["Sinônimo tem sentido igual."], mistake: "Antônimo." },
+        { q: "Qual a sílaba tônica de 'relógio'?", opts: ["re", "ló", "gi", "o"], ans: 1, explanation: ["Relógio é paroxítona."], mistake: "Última sílaba." },
+        { q: "Feminino de 'cavalo'?", opts: ["égua", "cavala", "mula", "zebra"], ans: 0, explanation: ["Égua é o feminino de cavalo."], mistake: "Cavala." },
+        { q: "Qual o artigo em 'Um dia frio'?", opts: ["Um", "dia", "frio", "Um dia"], ans: 0, explanation: ["Um é artigo indefinido."], mistake: "Substantivo." },
+        { q: "Qual a pontuação para uma pergunta?", opts: ["Ponto final", "Vírgula", "Interrogação", "Exclamação"], ans: 2, explanation: ["Interrogação indica pergunta."], mistake: "Exclamação." }
+      ]
+    },
+    "Ciências": {
+      1: [
+        { q: "Qual gás é essencial para a respiração humana?", opts: ["CO₂", "Nitrogênio", "Oxigênio", "Hidrogênio"], ans: 2, explanation: ["Precisamos de O₂ para respirar."], mistake: "CO₂." },
+        { q: "Função do coração?", opts: ["Filtrar sangue", "Bombear sangue", "Produzir hormônios", "Digerir"], ans: 1, explanation: ["O coração bombeia o sangue."], mistake: "Filtrar." },
+        { q: "Célula vegetal tem e a animal não:", opts: ["Membrana", "Mitocôndria", "Parede celular", "Ribossomo"], ans: 2, explanation: ["Parede celular dá rigidez."], mistake: "Membrana." },
+        { q: "Planeta mais próximo do Sol?", opts: ["Vênus", "Terra", "Mercúrio", "Marte"], ans: 2, explanation: ["Mercúrio é o primeiro."], mistake: "Vênus." },
+        { q: "Fotossíntese ocorre nos:", opts: ["Mitocôndrias", "Vacúolos", "Cloroplastos", "Ribossomos"], ans: 2, explanation: ["Cloroplastos captam luz."], mistake: "Mitocôndrias." },
+        { q: "Maior osso do corpo?", opts: ["Úmero", "Fêmur", "Rádio", "Tíbia"], ans: 1, explanation: ["Fêmur fica na coxa."], mistake: "Úmero." },
+        { q: "Satélite natural da Terra?", opts: ["Sol", "Lua", "Marte", "Estrela"], ans: 1, explanation: ["A Lua orbita a Terra."], mistake: "Sol." },
+        { q: "Estado físico do gelo?", opts: ["Sólido", "Líquido", "Gasoso", "Plasma"], ans: 0, explanation: ["Gelo é água sólida."], mistake: "Líquido." },
+        { q: "Parte da planta que faz fotossíntese?", opts: ["Raiz", "Caule", "Folha", "Fruto"], ans: 2, explanation: ["Folhas têm clorofila."], mistake: "Raiz." },
+        { q: "O que é o Sol?", opts: ["Planeta", "Cometa", "Estrela", "Galáxia"], ans: 2, explanation: ["O Sol é uma estrela."], mistake: "Planeta." },
+        { q: "Quantos planetas no Sistema Solar?", opts: ["7", "8", "9", "10"], ans: 1, explanation: ["São 8 planetas oficiais."], mistake: "9." },
+        { q: "Gás que as plantas absorvem na fotossíntese?", opts: ["Oxigênio", "Gás Carbônico", "Nitrogênio", "Hélio"], ans: 1, explanation: ["Absorvem CO₂ e soltam O₂."], mistake: "Oxigênio." },
+        { q: "Onde fica o cérebro?", opts: ["Tórax", "Abdômen", "Crânio", "Pelve"], ans: 2, explanation: ["Protegido pelo crânio."], mistake: "Tórax." },
+        { q: "Animal que nasce de ovo é:", opts: ["Mamífero", "Ovíparo", "Vivíparo", "Herbívoro"], ans: 1, explanation: ["Ovíparo põe ovos."], mistake: "Mamífero." },
+        { q: "Principal fonte de energia da Terra?", opts: ["Lua", "Vento", "Sol", "Petróleo"], ans: 2, explanation: ["O Sol sustenta a vida."], mistake: "Vento." }
+      ]
+    },
+    "História": {
+      1: [
+        { q: "Quem foi o primeiro presidente do Brasil?", opts: ["Dom Pedro II", "Getúlio Vargas", "Deodoro da Fonseca", "JK"], ans: 2, explanation: ["Deodoro assumiu em 1889."], mistake: "Dom Pedro II." },
+        { q: "Ano do 'descobrimento' do Brasil?", opts: ["1492", "1500", "1550", "1498"], ans: 1, explanation: ["Cabral chegou em 1500."], mistake: "1492." },
+        { q: "Civilização que construiu as Pirâmides?", opts: ["Romanos", "Gregos", "Egípcios", "Maias"], ans: 2, explanation: ["Egípcios construíram em Gizé."], mistake: "Maias." },
+        { q: "Quem descobriu a América em 1492?", opts: ["Vasco da Gama", "Cabral", "Colombo", "Vespúcio"], ans: 2, explanation: ["Colombo navegou pela Espanha."], mistake: "Cabral." },
+        { q: "O que foi a Lei Áurea?", opts: ["Deu terras", "Libertou escravos", "Criou o café", "Expulsou holandeses"], ans: 1, explanation: ["Assinada em 1888 pela Princesa Isabel."], mistake: "Deu terras." },
+        { q: "Onde surgiu a democracia?", opts: ["Roma", "Esparta", "Atenas", "Egito"], ans: 2, explanation: ["Atenas, na Grécia Antiga."], mistake: "Roma." },
+        { q: "Principal atividade econômica do Brasil Colônia no início?", opts: ["Ouro", "Café", "Pau-Brasil", "Soja"], ans: 2, explanation: ["Extração de madeira para tintura."], mistake: "Ouro." },
+        { q: "Quem gritou 'Independência ou Morte'?", opts: ["Dom Pedro I", "Dom Pedro II", "Tiradentes", "Zumbi"], ans: 0, explanation: ["Dom Pedro I, em 1822."], mistake: "Tiradentes." },
+        { q: "O que eram as Capitanias Hereditárias?", opts: ["Cidades", "Lotes de terra", "Navios", "Leis"], ans: 1, explanation: ["Divisão do Brasil por Portugal."], mistake: "Cidades." },
+        { q: "Quem foi o líder do Quilombo dos Palmares?", opts: ["Tiradentes", "Zumbi", "Aleijadinho", "Bento Gonçalves"], ans: 1, explanation: ["Zumbi lutou contra a escravidão."], mistake: "Tiradentes." },
+        { q: "A escrita surgiu na:", opts: ["Grécia", "Mesopotâmia", "China", "Egito"], ans: 1, explanation: ["Escrita cuneiforme dos sumérios."], mistake: "Grécia." },
+        { q: "O que foi o Tratado de Tordesilhas?", opts: ["Paz mundial", "Divisão de terras entre Portugal e Espanha", "Fim da guerra", "Lei de comércio"], ans: 1, explanation: ["Dividiu o 'Novo Mundo'."], mistake: "Fim da guerra." },
+        { q: "Quem eram os Bandeirantes?", opts: ["Padres", "Exploradores do interior", "Reis", "Escravos"], ans: 1, explanation: ["Buscavam ouro e indígenas."], mistake: "Padres." },
+        { q: "A Revolução Francesa defendia:", opts: ["Escravidão", "Liberdade, Igualdade e Fraternidade", "Monarquia absoluta", "Paz total"], ans: 1, explanation: ["Lema: Liberté, Égalité, Fraternité."], mistake: "Monarquia." },
+        { q: "O que foi a Pré-História?", opts: ["Antes da escrita", "Depois de Cristo", "Idade Média", "Era Digital"], ans: 0, explanation: ["Período anterior à invenção da escrita."], mistake: "Idade Média." }
+      ]
+    }
   },
-  "Português": {
-    1: [
-      { q: "Qual é o plural de 'cidadão'?", opts: ["cidadões", "cidadãos", "cidadõens", "cidadõs"], ans: 1, explanation: ["Palavras em -ão têm plural em -ãos, -ões ou -ães.", "'Cidadão' faz plural em -ãos.", "Resultado: cidadãos."], mistake: "Generalizar e usar -ões para todos os casos." },
-      { q: "Em 'O menino correu rápido.', qual é o sujeito?", opts: ["correu", "rápido", "O menino", "menino correu"], ans: 2, explanation: ["Sujeito é quem pratica a ação.", "'Quem correu?' → 'O menino'.", "Sujeito = 'O menino'."], mistake: "Confundir o verbo com o sujeito." },
-      { q: "Qual palavra está escrita corretamente?", opts: ["excessão", "exceção", "escepção", "exeção"], ans: 1, explanation: ["A forma correta é 'exceção'.", "Deriva do latim 'exceptione'.", "Outras formas são incorretas."], mistake: "Escrever 'excessão' por influência de 'excesso'." },
-      { q: "'Ele chegou cedo.' O verbo está em qual tempo?", opts: ["Presente", "Pret. Imperfeito", "Pret. Perfeito", "Futuro"], ans: 2, explanation: ["Pretérito Perfeito = ação concluída no passado.", "'Chegou' indica ação concluída.", "Tempo: Pretérito Perfeito."], mistake: "Confundir Pretérito Perfeito com Imperfeito." },
-      { q: "Qual é o antônimo de 'feliz'?", opts: ["alegre", "contente", "triste", "animado"], ans: 2, explanation: ["Antônimo = palavra de sentido oposto.", "O oposto de feliz é triste.", "Alegre e contente são sinônimos."], mistake: "Confundir sinônimo com antônimo." },
-      { q: "Qual o coletivo de 'peixes'?", opts: ["Alcateia", "Cardume", "Enxame", "Manada"], ans: 1, explanation: ["Cardume é o coletivo de peixes.", "Alcateia=lobos; Enxame=abelhas; Manada=elefantes."], mistake: "Confundir com alcateia." },
-      { q: "Qual a sílaba tônica de 'café'?", opts: ["ca", "fé", "Não tem", "As duas"], ans: 1, explanation: ["A sílaba tônica é a pronunciada com mais força.", "Em 'café', a última sílaba 'fé' é a tônica.", "É uma palavra oxítona."], mistake: "Achar que a primeira sílaba é a mais forte." },
-    ],
-    2: [
-      { q: "'Embora estivesse cansado, ele terminou.' A subordinada indica:", opts: ["Causa", "Concessão", "Condição", "Tempo"], ans: 1, explanation: ["'Embora' é conjunção concessiva.", "Expressa ideia contrária à esperada.", "Resposta: Concessão."], mistake: "Confundir concessão ('embora') com causa ('porque')." },
-      { q: "Em qual frase o 'por que' está correto?", opts: ["Por que você foi?", "Explique o porque.", "Não sei porque ele saiu.", "Porque sim."], ans: 0, explanation: ["'Por que' separado = pronome interrogativo.", "Usa-se em perguntas diretas.", "'Por que você foi?' está correto."], mistake: "Usar 'porque' em perguntas diretas." },
-      { q: "'Meus olhos são dois oceanos' — qual figura de linguagem?", opts: ["Metonímia", "Hipérbole", "Metáfora", "Antítese"], ans: 2, explanation: ["Metáfora = comparação implícita, sem 'como'.", "'Olhos são oceanos' compara sem usar 'como'.", "Símile usaria: 'como oceanos'."], mistake: "Confundir metáfora com hipérbole." },
-      { q: "'O gato que comeu o peixe sumiu.' — 'que comeu o peixe' é:", opts: ["Coord. Aditiva", "Sub. Adjetiva", "Sub. Adverbial", "Sub. Substantiva"], ans: 1, explanation: ["Orações adjetivas qualificam substantivos.", "'que comeu o peixe' qualifica 'gato'.", "É oração subordinada adjetiva."], mistake: "Confundir oração adjetiva com substantiva." },
-      { q: "Qual frase está na voz passiva?", opts: ["O aluno leu o livro.", "O livro foi lido pelo aluno.", "O aluno lê muito.", "Leia o livro!"], ans: 1, explanation: ["Voz passiva: sujeito sofre a ação.", "'O livro foi lido' — livro sofre a ação.", "Estrutura: verbo ser + particípio."], mistake: "Confundir voz passiva com ativa." },
-      { q: "Identifique a oração sem sujeito:", opts: ["Choveu muito ontem.", "Eles saíram cedo.", "O dia está lindo.", "Nós estudamos."], ans: 0, explanation: ["Verbos que indicam fenômenos da natureza não têm sujeito.", "'Choveu' é um verbo impessoal.", "Resultado: Choveu muito ontem."], mistake: "Achar que 'ontem' é o sujeito." },
-    ],
-    3: [
-      { q: "Em 'Vende-se casas', o verbo deveria estar:", opts: ["No singular — correto", "No plural: 'Vendem-se'", "No infinitivo", "No imperativo"], ans: 1, explanation: ["'Casas' é o sujeito paciente.", "O verbo concorda: 'casas' → plural.", "Correto: 'Vendem-se casas'."], mistake: "Tratar o verbo como impessoal." },
-      { q: "'Era uma noite de morte e vida' — qual recurso?", opts: ["Pleonasmo", "Antítese", "Catacrese", "Eufemismo"], ans: 1, explanation: ["Antítese = aproximação de ideias opostas.", "'morte' e 'vida' são opostas.", "Recurso: antítese."], mistake: "Confundir antítese com paradoxo." },
-      { q: "'Quando chegar, avise.' Quantas orações?", opts: ["1", "2", "3", "4"], ans: 1, explanation: ["Oração 1: 'Quando chegar' (subordinada).", "Oração 2: 'avise' (principal).", "Total: 2 orações."], mistake: "Contar o período inteiro como uma oração." },
-      { q: "O que é um hiato?", opts: ["Encontro de duas vogais em sílabas diferentes", "Encontro de duas vogais na mesma sílaba", "Encontro de três vogais", "Encontro de consoantes"], ans: 0, explanation: ["Hiato ocorre quando vogais se separam na division silábica.", "Ex: Sa-ú-de.", "Ditongo é quando ficam juntas."], mistake: "Confundir hiato com ditongo." },
-    ]
-  },
-  "Ciências": {
-    1: [
-      { q: "Qual gás é essencial para a respiração humana?", opts: ["CO₂", "Nitrogênio", "Oxigênio", "Hidrogênio"], ans: 2, explanation: ["Precisamos de O₂ para a respiração celular.", "O₂ é absorvido nos pulmões.", "Sem O₂ as células param."], mistake: "Confundir O₂ (inspirado) com CO₂ (expirado)." },
-      { q: "Qual é a função do coração?", opts: ["Filtrar o sangue", "Bombear o sangue", "Produzir hormônios", "Digerir alimentos"], ans: 1, explanation: ["O coração é um músculo-bomba.", "Impulsiona o sangue por todo o corpo.", "Rins filtram; pâncreas produz hormônios."], mistake: "Confundir função do coração com a dos rins." },
-      { q: "O que a célula vegetal tem que a animal não tem?", opts: ["Membrana plasmática", "Mitocôndria", "Parede celular", "Ribossomo"], ans: 2, explanation: ["Células vegetais têm parede celular (celulose).", "Células animais não possuem parede celular.", "Essa é uma das principais diferenças."], mistake: "Confundir parede celular com membrana plasmática." },
-      { q: "Qual é o planeta mais próximo do Sol?", opts: ["Vênus", "Terra", "Mercúrio", "Marte"], ans: 2, explanation: ["Ordem: Mercúrio, Vênus, Terra, Marte...", "Mercúrio é the mais próximo do Sol.", "Vênus é the 2º mais próximo."], mistake: "Confundir Mercúrio com Vênus." },
-      { q: "A fotossíntese ocorre nos:", opts: ["Mitocôndrias", "Vacúolos", "Cloroplastos", "Ribossomos"], ans: 2, explanation: ["Fotossíntese = luz solar → energia química.", "Processo ocorre nos cloroplastos.", "Cloroplastos têm clorofila (pigmento verde)."], mistake: "Confundir cloroplastos com mitocôndrias." },
-      { q: "Qual o maior osso do corpo humano?", opts: ["Úmero", "Fêmur", "Rádio", "Tíbia"], ans: 1, explanation: ["O fêmur é o osso da coxa.", "É o osso mais longo e forte do corpo.", "Resultado: Fêmur."], mistake: "Confundir com o úmero (braço)." },
-    ],
-    2: [
-      { q: "O que é a mitose?", opts: ["Fusão de gametas", "Divisão que gera 2 células iguais", "Produção de gametas", "Morte programada"], ans: 1, explanation: ["Mitose = divisão celular equacional.", "Resulta em 2 células geneticamente idênticas.", "Meiose produz gametas (4 células)."], mistake: "Confundir mitose com meiose." },
-      { q: "Qual é a fórmula química da água?", opts: ["CO₂", "H₂O", "O₂", "NaCl"], ans: 1, explanation: ["Água = 2 hidrogênios + 1 oxigênio.", "Fórmula: H₂O.", "CO₂=gás carbônico; NaCl=sal."], mistake: "Confundir H₂O com CO₂." },
-      { q: "O que acontece quando um predador é removido da cadeia?", opts: ["Nada muda", "A presa diminui", "A presa aumenta descontroladamente", "O produtor desaparece"], ans: 2, explanation: ["Sem predadores, a presa não é controlada.", "A população da presa cresce em excesso.", "Isso causa desequilíbrio ambiental."], mistake: "Pensar que remoção do predador não afeta a presa." },
-      { q: "Qual a principal função das hemácias?", opts: ["Defesa do corpo", "Coagulação", "Transporte de oxigênio", "Produção de anticorpos"], ans: 2, explanation: ["Hemácias contêm hemoglobina.", "Ligam-se ao oxigênio nos pulmões.", "Transportam O₂ para os tecidos."], mistake: "Confundir com leucócitos (defesa)." },
-    ],
-    3: [
-      { q: "O que é seleção natural segundo Darwin?", opts: ["Mutação aleatória", "Sobrevivência dos mais fortes", "Indivíduos melhor adaptados sobrevivem e reproduzem mais", "Criação divina das espécies"], ans: 2, explanation: ["Darwin observou variações entre indivíduos.", "Os mais adaptados ao ambiente reproduzem mais.", "Isso leva à evolução das espécies."], mistake: "Simplificar como 'mais forte' sem considerar adaptação." },
-      { q: "O que é um átomo isoeletrônico?", opts: ["Mesmo número de massa", "Mesmo elemento", "Mesmo número de elétrons", "Mesmo número de nêutrons"], ans: 2, explanation: ["Isoeletrônicas = mesma quantidade de elétrons.", "Ex: Na⁺ e Ne têm 10 elétrons cada.", "Não importa se são do mesmo elemento."], mistake: "Confundir isoeletrônico com isótopo." },
-      { q: "Qual a função da enzima amilase?", opts: ["Quebrar proteínas", "Quebrar gorduras", "Quebrar amido", "Quebrar DNA"], ans: 2, explanation: ["Amilase salivar inicia a digestão na boca.", "Atua sobre o amido (carboidrato).", "Transforma amido em maltose."], mistake: "Achar que digere proteínas." },
-    ]
-  },
-  "História": {
-    1: [
-      { q: "Quem foi o primeiro presidente do Brasil?", opts: ["Dom Pedro II", "Getúlio Vargas", "Deodoro da Fonseca", "JK"], ans: 2, explanation: ["Com a República em 1889, Deodoro assumiu.", "Foi o 1º presidente do Brasil.", "Dom Pedro II foi o último imperador."], mistake: "Confundir Dom Pedro II com o 1º presidente." },
-      { q: "Em que ano o Brasil foi 'descoberto' pelos portugueses?", opts: ["1492", "1500", "1550", "1498"], ans: 1, explanation: ["Cabral chegou ao Brasil em 22 de abril de 1500.", "Em 1492, Colombo chegou ao Caribe.", "1498 foi a chegada de Vasco da Gama à Índia."], mistake: "Confundir 1500 com 1492." },
-      { q: "Qual civilização construiu as pirâmides do Egito?", opts: ["Romanos", "Gregos", "Egípcios", "Maias"], ans: 2, explanation: ["As pirâmides foram construídas pelos egípcios.", "A maior é a Pirâmide de Quéops, em Gizé.", "Maias construíram templos-pirâmide nas Américas."], mistake: "Confundir pirâmides egípcias com as maias." },
-      { q: "Quem descobriu a América em 1492?", opts: ["Vasco da Gama", "Pedro Álvares Cabral", "Cristóvão Colombo", "Américo Vespúcio"], ans: 2, explanation: ["Colombo navegou pela Espanha.", "Chegou às Bahamas em 1492.", "Pensava ter chegado às Índias."], mistake: "Confundir com Cabral (Brasil)." },
-      { q: "O que foi a Lei Áurea?", opts: ["Lei que deu terras aos escravos", "Lei que libertou os escravos no Brasil", "Lei que criou o café", "Lei que expulsou os holandeses"], ans: 1, explanation: ["Assinada pela Princesa Isabel em 1888.", "Extinguiu a escravidão no Brasil.", "Resultado: Fim da escravidão legal."], mistake: "Confundir com a Lei do Ventre Livre." },
-    ],
-    2: [
-      { q: "Qual foi a causa imediata da I Guerra Mundial?", opts: ["Invasão da Polônia", "Assassinato do Arquiduque Francisco Ferdinando", "Crise de 1929", "Revolução Russa"], ans: 1, explanation: ["O estopim foi o assassinato de Francisco Ferdinando em 1914.", "Ativou o sistema de alianças europeias.", "A tensão imperialista já existia antes."], mistake: "Confundir o estopim da I Guerra com a II Guerra." },
-      { q: "O que foi o Estado Novo no Brasil?", opts: ["1º governo republicano", "Ditadura de Vargas (1937-1945)", "Governo de JK", "Período da Abertura"], ans: 1, explanation: ["Estado Novo foi instaurado por Vargas em 1937.", "Regime autoritário e centralizador.", "Durou até 1945."], mistake: "Confundir Estado Novo com toda a Era Vargas." },
-      { q: "O que foi o Renascimento?", opts: ["Movimento religioso", "Movimento cultural e artístico na Europa", "Revolução industrial", "Guerra civil americana"], ans: 1, explanation: ["Surgiu na Itália entre os séculos XIV e XVI.", "Valorização do humanismo e da antiguidade clássica.", "Artistas como Leonardo da Vinci e Michelangelo."], mistake: "Confundir com a Reforma Protestante." },
-    ],
-    3: [
-      { q: "O que foi o Congresso de Viena (1815)?", opts: ["Paz após a I Guerra", "Reorganização da Europa após Napoleão", "Criação da Liga das Nações", "Divisão da Alemanha"], ans: 1, explanation: ["Congresso de Viena (1814-1815) reorganizou a Europa.", "Restaurou monarquias derrubadas por Napoleão.", "Criou o 'equilíbrio de poder' europeu."], mistake: "Confundir com Tratado de Versalhes (pós-I Guerra)." },
-      { q: "O que caracterizou o Imperialismo do século XIX?", opts: ["Cooperação pacífica", "Dominação europeia sobre Ásia e África", "Democracia representativa global", "Industrialização das colônias"], ans: 1, explanation: ["Imperialismo = expansão europeia sobre outros continentes.", "Motivado por matérias-primas e mercados.", "África e Ásia foram os principais alvos."], mistake: "Confundir imperialismo com colonialismo." },
-      { q: "Quem foi o líder da Revolução Russa de 1917?", opts: ["Stalin", "Lenin", "Trotsky", "Nicolau II"], ans: 1, explanation: ["Lenin liderou os bolcheviques.", "Derrubou o governo provisório.", "Instaurou o regime socialista."], mistake: "Confundir com Stalin, que assumiu depois." },
-      { q: "O que foi a Guerra Fria?", opts: ["Conflito armado EUA × URSS", "Tensão ideológica sem confronto direto", "Série de guerras na Europa Central", "Guerra econômica do Japão"], ans: 1, explanation: ["Guerra Fria (1947-1991): EUA × URSS.", "Não houve guerra direta entre as superpotências.", "Manifestou-se em corrida armamentista e conflitos por procuração."], mistake: "Pensar que houve guerra direta entre EUA e URSS." },
-      { q: "O que foi o Holocausto?", opts: ["Bomba atômica em Hiroshima", "Genocídio de judeus e outros grupos pelo nazismo", "Massacre de civis em Stalingrado", "Campos de trabalho soviéticos"], ans: 1, explanation: ["O Holocausto foi o extermínio sistemático de ~6 milhões de judeus.", "Também vitimou ciganos, homossexuais, deficientes, etc.", "Perpetrado pelo regime nazista de Hitler."], mistake: "Confundir o Holocausto com outros crimes de guerra da WWII." },
-    ]
-  }
+  "7º Ano": {
+    "Matemática": {
+      1: [
+        { q: "Quanto é -5 + 8?", opts: ["-3", "3", "13", "-13"], ans: 1, explanation: ["Sinais diferentes, subtrai e mantém o do maior."], mistake: "Somar os valores." },
+        { q: "Valor de (-2)³?", opts: ["-6", "6", "-8", "8"], ans: 2, explanation: ["-2 * -2 * -2 = -8."], mistake: "Fazer -2 * 3." },
+        { q: "Qual o valor de x em x - 10 = -4?", opts: ["-14", "6", "-6", "14"], ans: 1, explanation: ["x = -4 + 10 = 6."], mistake: "x = -14." },
+        { q: "Quanto é 3/4 de 100?", opts: ["25", "50", "75", "80"], ans: 2, explanation: ["(100/4)*3 = 75."], mistake: "25." },
+        { q: "O que é um número primo?", opts: ["Divisível por 2", "Divisível por 1 e por ele mesmo", "Número par", "Número terminado em 1"], ans: 1, explanation: ["Primos têm apenas 2 divisores."], mistake: "Achar que todo ímpar é primo." },
+        { q: "Qual o MMC de 4 e 6?", opts: ["2", "10", "12", "24"], ans: 2, explanation: ["Múltiplos de 4: 4, 8, 12... Múltiplos de 6: 6, 12..."], mistake: "Usar o MDC." },
+        { q: "Qual o MDC de 12 e 18?", opts: ["2", "3", "6", "36"], ans: 2, explanation: ["Divisores de 12: 1, 2, 3, 4, 6, 12. Divisores de 18: 1, 2, 3, 6, 9, 18."], mistake: "Usar o MMC." },
+        { q: "Quanto é 20% de 150?", opts: ["15", "20", "30", "45"], ans: 2, explanation: ["0,2 * 150 = 30."], mistake: "15." },
+        { q: "Um triângulo com 3 lados iguais é:", opts: ["Isósceles", "Escaleno", "Equilátero", "Retângulo"], ans: 2, explanation: ["Equi (igual) + látero (lado)."], mistake: "Isósceles." },
+        { q: "Soma dos ângulos internos de um triângulo?", opts: ["90°", "180°", "270°", "360°"], ans: 1, explanation: ["Sempre 180°."], mistake: "360°." },
+        { q: "Quanto é 2,5 * 4?", opts: ["8", "9", "10", "12"], ans: 2, explanation: ["2,5 + 2,5 + 2,5 + 2,5 = 10."], mistake: "8." },
+        { q: "O valor de √49 + √16 é:", opts: ["9", "11", "13", "65"], ans: 1, explanation: ["7 + 4 = 11."], mistake: "√65." },
+        { q: "Se um livro custa R$ 40 e tem 10% de desconto, o preço é:", opts: ["R$ 30", "R$ 34", "R$ 36", "R$ 38"], ans: 2, explanation: ["10% de 40 = 4. 40 - 4 = 36."], mistake: "R$ 30." },
+        { q: "Qual o valor de 2x = 14?", opts: ["7", "12", "16", "28"], ans: 0, explanation: ["x = 14 / 2 = 7."], mistake: "28." },
+        { q: "O oposto de -15 é:", opts: ["0", "1", "15", "-1/15"], ans: 2, explanation: ["Oposto muda o sinal."], mistake: "Inverso." }
+      ]
+    },
+    "Português": {
+        1: [
+          { q: "O que é um sujeito composto?", opts: ["Tem um núcleo", "Tem dois ou mais núcleos", "Não tem núcleo", "É oculto"], ans: 1, explanation: ["Ex: João e Maria saíram."], mistake: "Achar que é plural." },
+          { q: "Qual a função do adjetivo?", opts: ["Indicar ação", "Caracterizar o substantivo", "Substituir o nome", "Ligar orações"], ans: 1, explanation: ["Ex: Carro 'veloz'."], mistake: "Indicar ação." },
+          { q: "O que é uma oxítona?", opts: ["Sílaba tônica é a última", "Sílaba tônica é a penúltima", "Sílaba tônica é a antepenúltima", "Não tem acento"], ans: 0, explanation: ["Ex: Café, Maracujá."], mistake: "Paroxítona." },
+          { q: "Qual o coletivo de 'lobos'?", opts: ["Cardume", "Alcateia", "Enxame", "Manada"], ans: 1, explanation: ["Alcateia = lobos."], mistake: "Cardume." },
+          { q: "O que é um dígrafo?", opts: ["Duas vogais", "Duas letras com um único som", "Três vogais", "Encontro de consoantes"], ans: 1, explanation: ["Ex: CH, LH, NH, RR, SS."], mistake: "Ditongo." },
+          { q: "Qual o plural de 'mão'?", opts: ["mãos", "mães", "mões", "mãens"], ans: 0, explanation: ["Mão faz plural em -ãos."], mistake: "Mães." },
+          { q: "Em 'Ele viajou ontem', qual o advérbio?", opts: ["Ele", "viajou", "ontem", "viajou ontem"], ans: 2, explanation: ["Ontem indica tempo."], mistake: "Verbo." },
+          { q: "O que é um hiato?", opts: ["Vogais juntas", "Vogais em sílabas separadas", "Três vogais", "Duas consoantes"], ans: 1, explanation: ["Ex: Sa-ú-de."], mistake: "Ditongo." },
+          { q: "Qual o feminino de 'ator'?", opts: ["atora", "atriz", "atrizadora", "atrizinha"], ans: 1, explanation: ["Atriz é o feminino."], mistake: "Atora." },
+          { q: "O que é uma frase interrogativa?", opts: ["Uma ordem", "Uma pergunta", "Uma surpresa", "Uma afirmação"], ans: 1, explanation: ["Termina com '?'."], mistake: "Exclamação." },
+          { q: "Qual o antônimo de 'alto'?", opts: ["grande", "baixo", "comprido", "largo"], ans: 1, explanation: ["Baixo é o oposto."], mistake: "Grande." },
+          { q: "O que é um substantivo próprio?", opts: ["Nome comum", "Nome de pessoa ou lugar", "Qualidade", "Ação"], ans: 1, explanation: ["Sempre com letra maiúscula."], mistake: "Substantivo comum." },
+          { q: "Qual a classe de 'nós'?", opts: ["Verbo", "Substantivo", "Pronome", "Adjetivo"], ans: 2, explanation: ["Pronome pessoal."], mistake: "Verbo." },
+          { q: "O que indica o ponto de exclamação?", opts: ["Pergunta", "Emoção ou surpresa", "Fim de frase", "Pausa"], ans: 1, explanation: ["Ex: Que susto!"], mistake: "Pergunta." },
+          { q: "Qual o plural de 'canal'?", opts: ["canals", "canais", "canães", "canalses"], ans: 1, explanation: ["Terminados em -al fazem -ais."], mistake: "Canals." }
+        ]
+      }
+    }
 };
 
 export const NIVEL_QUESTIONS: Question[] = [

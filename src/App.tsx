@@ -513,8 +513,9 @@ function EduApp() {
           type: 'up' 
         });
         // Refresh questions for new difficulty
-        const subjectQs = QUESTIONS_BY_SUBJECT[state.currentSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
-        const newQs = [...(subjectQs[nextDiff] || subjectQs[2])];
+        const yearQs = QUESTIONS_BY_SUBJECT[state.currentYear] || QUESTIONS_BY_SUBJECT["6º Ano"];
+        const subjectQs = yearQs[state.currentSubject] || yearQs["Matemática"];
+        const newQs = [...(subjectQs[nextDiff] || subjectQs[2] || [])];
         if (newQs.length > 0) {
           setExQuestions(shuffleArr(newQs));
           setState(prev => ({ ...prev, exIndex: 0 })); 
@@ -528,8 +529,9 @@ function EduApp() {
           text: `📚 Vamos reforçar a base! Dificuldade ajustada para ${['', 'Fácil', 'Médio', 'Difícil'][nextDiff]}.`, 
           type: 'down' 
         });
-        const subjectQs = QUESTIONS_BY_SUBJECT[state.currentSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
-        const newQs = [...(subjectQs[nextDiff] || subjectQs[1])];
+        const yearQs = QUESTIONS_BY_SUBJECT[state.currentYear] || QUESTIONS_BY_SUBJECT["6º Ano"];
+        const subjectQs = yearQs[state.currentSubject] || yearQs["Matemática"];
+        const newQs = [...(subjectQs[nextDiff] || subjectQs[1] || [])];
         if (newQs.length > 0) {
           setExQuestions(shuffleArr(newQs));
           setState(prev => ({ ...prev, exIndex: 0 }));
@@ -608,21 +610,15 @@ function EduApp() {
             return {
               ...prev,
               subjectLevels: newLevels,
-              xp: prev.xp + 500 // Bonus for level completion
+              xp: prev.xp + 500 
             };
           });
           
-          // Automatic next level transition
-          setAlgoMsg({ text: `🎉 Nível ${state.currentLevel} concluído! Iniciando Nível ${nextLvl}...`, type: 'up' });
-          setTimeout(() => {
-            startExercicio(state.currentSubject, `Nível ${nextLvl}`, state.difficulty, false, nextLvl);
-          }, 1500);
+          setScreen('level-complete');
         } else {
-          alert(`📚 Você acertou ${state.exCorrect}/${exQuestions.length}. Precisa de pelo menos 70% para passar!`);
-          setScreen('levels');
+          setScreen('level-complete');
         }
       } else {
-        // Daily challenge or other exercise
         setScreen('home');
       }
       return;
@@ -802,15 +798,16 @@ function EduApp() {
         
         if (offlineData) {
           const offlinePool = JSON.parse(offlineData);
-          const countNeeded = levelNum ? 10 : 5;
+          const countNeeded = levelNum ? 15 : 5;
           qs = shuffleArr([...offlinePool]).slice(0, countNeeded);
           console.log(`Usando ${qs.length} questões do banco offline para ${targetSubject}`);
         } else {
           // Fallback to constants if no offline bank generated yet
-          const subjectQs = QUESTIONS_BY_SUBJECT[targetSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
-          const localPool = subjectQs[levelDiff] || subjectQs[2] || [];
+          const yearQs = QUESTIONS_BY_SUBJECT[state.currentYear] || QUESTIONS_BY_SUBJECT["6º Ano"];
+          const subjectQs = yearQs[targetSubject] || yearQs["Matemática"];
+          const localPool = subjectQs[levelDiff] || subjectQs[1] || [];
           if (localPool.length > 0) {
-            const countNeeded = levelNum ? 10 : 5;
+            const countNeeded = levelNum ? 15 : 5;
             qs = shuffleArr([...localPool]).slice(0, countNeeded);
             console.log(`Usando ${qs.length} questões das constantes para ${targetSubject}`);
           }
@@ -850,8 +847,9 @@ function EduApp() {
 
       // 3. Final Fallback
       if (qs.length === 0) {
-        const subjectQs = QUESTIONS_BY_SUBJECT[targetSubject] || QUESTIONS_BY_SUBJECT["Matemática"];
-        qs = shuffleArr([...(subjectQs[levelDiff] || subjectQs[2])]).slice(0, 10);
+        const yearQs = QUESTIONS_BY_SUBJECT[state.currentYear] || QUESTIONS_BY_SUBJECT["6º Ano"];
+        const subjectQs = yearQs[targetSubject] || yearQs["Matemática"];
+        qs = shuffleArr([...(subjectQs[levelDiff] || subjectQs[1] || [])]).slice(0, 15);
       }
 
       setExQuestions(qs);
@@ -1476,15 +1474,32 @@ function EduApp() {
         </div>
 
         <div className="overflow-y-auto flex-1 p-6">
-          <div className="grid grid-cols-4 gap-4">
+          <motion.div 
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.03
+                }
+              }
+            }}
+            className="grid grid-cols-4 gap-4"
+          >
             {Array.from({ length: 100 }).map((_, i) => {
               const levelNum = i + 1;
               const isLocked = levelNum > unlockedLevel;
               const isCurrent = levelNum === unlockedLevel;
               
               return (
-                <div 
+                <motion.div 
                   key={levelNum}
+                  variants={{
+                    hidden: { y: 20, opacity: 0 },
+                    visible: { y: 0, opacity: 1 }
+                  }}
                   onClick={() => !isLocked && startExercicio(currentSubject, `Nível ${levelNum}`, 2, false, levelNum)}
                   className={`
                     aspect-square rounded-2xl flex flex-col items-center justify-center border-2 transition-all cursor-pointer
@@ -1505,14 +1520,74 @@ function EduApp() {
                       </div>
                     </>
                   )}
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         </div>
       </div>
     );
   };
+  const renderLevelComplete = () => {
+    const pass = state.exCorrect >= (exQuestions.length * 0.7);
+    const accuracy = Math.round((state.exCorrect / exQuestions.length) * 100);
+    
+    return (
+      <div className="flex flex-col min-h-screen bg-bg animate-fade-in p-6 justify-center text-center">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-card border-2 border-border rounded-3xl p-8 shadow-2xl"
+        >
+          <div className="text-7xl mb-6">{pass ? '🏆' : '📚'}</div>
+          <h2 className="text-3xl font-black mb-2">
+            {pass ? 'Nível Concluído!' : 'Quase lá!'}
+          </h2>
+          <p className="text-muted text-sm mb-8">
+            {pass 
+              ? `Parabéns! Você desbloqueou o próximo nível de ${state.currentSubject}.` 
+              : `Você acertou ${state.exCorrect} de ${exQuestions.length}. Estude mais um pouco para desbloquear o próximo nível!`}
+          </p>
+          
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-bg2 rounded-2xl p-4 border border-border">
+              <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Precisão</div>
+              <div className={`text-2xl font-black ${pass ? 'text-success' : 'text-warning'}`}>{accuracy}%</div>
+            </div>
+            <div className="bg-bg2 rounded-2xl p-4 border border-border">
+              <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">XP Ganhos</div>
+              <div className="text-2xl font-black text-primary">+{pass ? 500 + (state.exCorrect * 10) : (state.exCorrect * 10)}</div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {pass ? (
+              <button 
+                onClick={() => startExercicio(state.currentSubject, `Nível ${state.currentLevel + 1}`, 2, false, state.currentLevel + 1)}
+                className="btn-primary w-full"
+              >
+                Próximo Nível →
+              </button>
+            ) : (
+              <button 
+                onClick={() => startExercicio(state.currentSubject, `Nível ${state.currentLevel}`, 2, false, state.currentLevel)}
+                className="btn-primary w-full"
+              >
+                Tentar Novamente
+              </button>
+            )}
+            <button 
+              onClick={() => setScreen('levels')}
+              className="btn-primary w-full bg-card border border-border shadow-none text-text"
+            >
+              Ver Todos os Níveis
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   const renderPerfil = () => {
     const saveProfile = () => {
       setState(prev => ({ ...prev, profileName: tempProfileName }));
@@ -1716,6 +1791,7 @@ function EduApp() {
             {screen === 'exercicio' && renderExercicio()}
             {screen === 'review' && renderReview()}
             {screen === 'perfil' && renderPerfil()}
+            {screen === 'level-complete' && renderLevelComplete()}
           </>
         )}
 

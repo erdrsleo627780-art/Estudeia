@@ -11,10 +11,12 @@ export interface SubjectQuestions {
 }
 
 export interface QuestionDatabase {
-  [subject: string]: SubjectQuestions;
+  [year: string]: {
+    [subject: string]: SubjectQuestions;
+  };
 }
 
-export type Screen = 'onboarding' | 'home' | 'levels' | 'exercicio' | 'review' | 'perfil';
+export type Screen = 'onboarding' | 'home' | 'levels' | 'exercicio' | 'review' | 'perfil' | 'level-complete';
 
 export interface UserData {
   uid: string;
